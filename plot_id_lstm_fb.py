@@ -9,10 +9,12 @@ Usage:
 """
 
 import sys
+from typing import Any
 
 import duckdb
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.typing as npt
 
 OUTPUT = sys.argv[1] if len(sys.argv) > 1 else "id_lstm_fb.png"
 
@@ -25,7 +27,9 @@ CONDITIONS = {
 }
 
 
-def smooth(values, window=10):
+def smooth(
+    values: npt.NDArray[np.floating[Any]], window: int = 10
+) -> npt.NDArray[np.floating[Any]]:
     if window <= 1 or len(values) < window:
         return values
     return np.convolve(values, np.ones(window) / window, mode="valid")

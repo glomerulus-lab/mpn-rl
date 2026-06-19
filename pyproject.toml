@@ -73,4 +73,30 @@ strict = true
 warn_unused_ignores = true
 disallow_untyped_defs = true
 ignore_missing_imports = true
+exclude = [
+    "check_reward_timing.py",
+    "compare_models.py",
+    "generate_table_images.py",
+    "main_a2c.py",
+    "model_utils.py",
+    "mpn_module.py",
+    "mpn_torchrl_module.py",
+    "neurogym_wrapper.py",
+    "oracle_agents.py",
+    "plot_custom_sweep_bar.py",
+    "plot_custom_sweep_curves.py",
+    "plot_episode_rewards.py",
+    "plot_eval_table.py",
+    "plot_id_mpn_curve.py",
+    "plot_layer_heatmap.py",
+    "plot_trial_appendix.py",
+    "plot_trial_lengths.py",
+    "plot_trial_lengths_all_envs.py",
+    "plot_trial_lengths_per_task.py",
+    "query_experiments.py",
+    "rnn_module.py",
+    "temporal_order_env.py",
+    "test_all_envs.py",
+    "visualize_mpn_m_matrix.py",
+]
 
