@@ -20,8 +20,8 @@ import random
 import uuid
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import gymnasium
+import matplotlib.pyplot as plt
 import neurogym  # noqa: F401 — registers NeuroGym environments
 import numpy as np
 import torch
@@ -30,10 +30,11 @@ import torch.nn.functional as F
 import tqdm
 import wandb
 
-# Local imports
-from model_utils import ExperimentManager 
-from mpn_module import MPN
 import temporal_order_env  # registers TemporalOrder-v0 / TemporalOrder10-v0 / TemporalOrder20-v0
+
+# Local imports
+from model_utils import ExperimentManager
+from mpn_module import MPN
 from oracle_agents import get_oracle_reward
 
 

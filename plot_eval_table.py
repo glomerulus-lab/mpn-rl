@@ -6,14 +6,15 @@ Usage:
     python plot_eval_table.py [output]
 """
 
-import sys
 import json
+import sys
 from pathlib import Path
 
 import duckdb
+import matplotlib
 import numpy as np
 import torch
-import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 

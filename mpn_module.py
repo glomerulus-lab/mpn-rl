@@ -14,10 +14,11 @@ Key features:
 Reference: eLife-83035 - Multi-plasticity networks
 """
 
+from typing import Optional, Tuple
+
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
-from typing import Optional, Tuple
 
 
 class RandomInputProjection(nn.Module):

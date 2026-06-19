@@ -18,25 +18,29 @@ Usage:
 import argparse
 import json
 import warnings
-import numpy as np
-import torch
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple, Any
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import neurogym  # Register neurogym environments
-import temporal_order_env  # Register TemporalOrder-v0 / TemporalOrder10-v0 / TemporalOrder20-v0
-
+import numpy as np
+import torch
 from tensordict.nn import TensorDictModule as Mod
 from tensordict.nn import TensorDictSequential as Seq
-from torchrl.envs import (Compose, ExplorationType, InitTracker, StepCounter,
-                          TransformedEnv, set_exploration_type)
+from torchrl.envs import (
+    Compose,
+    ExplorationType,
+    InitTracker,
+    StepCounter,
+    TransformedEnv,
+    set_exploration_type,
+)
 from torchrl.envs.libs.gym import GymEnv
 from torchrl.modules import MLP, LSTMModule, QValueModule
 
+import temporal_order_env  # Register TemporalOrder-v0 / TemporalOrder10-v0 / TemporalOrder20-v0
+from model_utils import ExperimentManager
 from mpn_torchrl_module import MPNModule
 from rnn_module import RNNModule
-from model_utils import ExperimentManager
-
 
 AVAILABLE_METRICS = ['cumulative_reward', 'reward_variance', 'parameter_count', 'worst_vs_best']
 

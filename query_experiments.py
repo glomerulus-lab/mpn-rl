@@ -33,7 +33,6 @@ import pandas as pd
 
 from model_utils import EXPERIMENTS_DB, SCHEMA_VERSION, _get_db
 
-
 # ---------------------------------------------------------------------------
 # Live DuckDB connection (reads files directly, always up-to-date)
 # ---------------------------------------------------------------------------

@@ -12,10 +12,11 @@ Usage:
 
 import argparse
 import warnings
+
 warnings.filterwarnings("ignore")
 
-import numpy as np
 import neurogym as ngym
+import numpy as np
 
 ENVS = [
     "GoNogo-v0",

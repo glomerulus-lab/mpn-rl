@@ -19,8 +19,8 @@ each episode is a self-contained sequence of length trial_len, enabling clean
 sequence-aligned replay buffer sampling.
 """
 
-import numpy as np
 import gymnasium as gym
+import numpy as np
 from gymnasium import spaces
 
 

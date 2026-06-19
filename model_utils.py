@@ -10,18 +10,18 @@ Handles:
 - Replay buffer and TD loss computation
 """
 
-import os
 import json
-import torch
-import torch.nn.functional as F
-from pathlib import Path
-from typing import Dict, Optional, Any
+import os
 import random
-from datetime import datetime
 import sqlite3
 import time
 from collections import deque, namedtuple
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, Optional
 
+import torch
+import torch.nn.functional as F
 
 # Experience tuple for replay buffer
 Experience = namedtuple('Experience', ['obs', 'action', 'reward', 'next_obs', 'done', 'state', 'next_state'])

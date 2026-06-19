@@ -4,11 +4,12 @@ This wraps PyTorch's nn.RNN to make it compatible with TensorDict.
 """
 
 import torch
-from torch import nn
 from tensordict import TensorDictBase, unravel_key_list
 from tensordict.base import NO_DEFAULT
-from tensordict.nn import dispatch, TensorDictModuleBase as ModuleBase
+from tensordict.nn import TensorDictModuleBase as ModuleBase
+from tensordict.nn import dispatch
 from tensordict.utils import expand_as_right, prod
+from torch import nn
 from torchrl.data.tensor_specs import Unbounded
 
 

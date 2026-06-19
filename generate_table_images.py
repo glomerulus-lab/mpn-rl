@@ -16,7 +16,6 @@ import os
 import subprocess
 from pathlib import Path
 
-
 RESULTS_DIR = Path("results")
 IMAGES_DIR = Path("images")
 

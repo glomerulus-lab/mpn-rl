@@ -11,11 +11,12 @@ Usage:
 
 import argparse
 import warnings
+
 warnings.filterwarnings("ignore")
 
-import numpy as np
 import matplotlib.pyplot as plt
 import neurogym as ngym
+import numpy as np
 
 from neurogym_wrapper import NeuroGymInfoWrapper
 

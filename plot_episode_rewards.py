@@ -1,8 +1,9 @@
 """Plot GoNogo and IntervalDiscrimination learning curves by episode number."""
 import json
-import numpy as np
-import matplotlib.pyplot as plt
 from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
 
 COLORS = {'rnn': '#1f77b4', 'lstm': '#ff7f0e', 'mpn': '#2ca02c', 'mpn_frozen': '#d62728'}
 SMOOTH = 50

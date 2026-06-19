@@ -14,14 +14,15 @@ import json
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
+import imageio.v2 as imageio
 import matplotlib.cm as mcm
 import matplotlib.colors as mcolors
-import numpy as np
-import imageio.v2 as imageio
+import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
 import neurogym  # noqa: F401
+import numpy as np
 import torch
 
 from main_a2c import TrialEndWrapper

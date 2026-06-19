@@ -149,9 +149,11 @@ def test_env_seeding(env_name: str) -> dict:
 
     # --- Path 2: TorchRL walker (_reseed_torchrl_env) ---
     try:
+        import os
+        import sys
+
         import neurogym  # noqa: F401 – registers envs with gymnasium
         from torchrl.envs.libs.gym import GymWrapper
-        import sys, os
         sys.path.insert(0, os.path.dirname(__file__))
         from main import _reseed_torchrl_env
 
@@ -181,8 +183,8 @@ def test_env_seeding(env_name: str) -> dict:
 
 def test_env_training(env_name: str, model_type: str = 'lstm', frames: int = 1000) -> dict:
     """Run a quick training test on the environment."""
-    import tempfile
     import shutil
+    import tempfile
 
     exp_name = f"test-{env_name.replace('-v0', '').lower()}-{model_type}"
 

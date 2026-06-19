@@ -40,12 +40,14 @@ Example:
     ... )
 """
 
+from typing import Optional, Tuple
+
 import torch
 import torch.nn as nn
-from typing import Optional, Tuple
 from tensordict import TensorDict, TensorDictBase, unravel_key_list
 from tensordict.base import NO_DEFAULT
-from tensordict.nn import dispatch, TensorDictModuleBase as ModuleBase
+from tensordict.nn import TensorDictModuleBase as ModuleBase
+from tensordict.nn import dispatch
 from torchrl.data.tensor_specs import Unbounded
 from torchrl.envs.transforms import TensorDictPrimer
 
