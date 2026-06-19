@@ -35,22 +35,22 @@ ENVS = [
 ]
 
 ENV_SHORT = {
-    "GoNogo-v0":                               "GoNogo",
-    "ContextDecisionMaking-v0":                "ContextDM",
-    "DelayComparison-v0":                      "DelayComp",
-    "DelayMatchSample-v0":                     "DMS",
-    "DelayMatchSampleDistractor1D-v0":         "DMSD1D",
-    "DelayPairedAssociation-v0":               "DelayPA",
-    "IntervalDiscrimination-v0":               "IntervalDisc",
-    "MultiSensoryIntegration-v0":              "MultiSens",
-    "PerceptualDecisionMaking-v0":             "PDM",
-    "PerceptualDecisionMakingDelayResponse-v0":"PDM-DelayResp",
-    "ProbabilisticReasoning-v0":               "ProbReason",
+    "GoNogo-v0": "GoNogo",
+    "ContextDecisionMaking-v0": "ContextDM",
+    "DelayComparison-v0": "DelayComp",
+    "DelayMatchSample-v0": "DMS",
+    "DelayMatchSampleDistractor1D-v0": "DMSD1D",
+    "DelayPairedAssociation-v0": "DelayPA",
+    "IntervalDiscrimination-v0": "IntervalDisc",
+    "MultiSensoryIntegration-v0": "MultiSens",
+    "PerceptualDecisionMaking-v0": "PDM",
+    "PerceptualDecisionMakingDelayResponse-v0": "PDM-DelayResp",
+    "ProbabilisticReasoning-v0": "ProbReason",
 }
 
 POLICIES = {
     "Always Withhold": {"policy": "always_0", "color": "#9C27B0"},
-    "Always Respond":  {"policy": "always_1", "color": "#2196F3"},
+    "Always Respond": {"policy": "always_1", "color": "#2196F3"},
 }
 
 
@@ -76,8 +76,8 @@ def collect_lengths(env_name: str, policy: str, n_trials: int, seed: int):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--n-trials", type=int, default=300)
-    parser.add_argument("--seed",     type=int, default=42)
-    parser.add_argument("--out",      default="trial_lengths_all_envs.png")
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--out", default="trial_lengths_all_envs.png")
     args = parser.parse_args()
 
     # Collect data
@@ -89,24 +89,34 @@ def main():
             lengths = collect_lengths(env_name, cfg["policy"], args.n_trials, args.seed)
             results[env_name][pol_name] = lengths
             print(f"{pol_name}: {np.mean(lengths):.1f}", end="  ", flush=True)
-        diff = np.mean(results[env_name]["Always Withhold"]) - np.mean(results[env_name]["Always Respond"])
+        diff = np.mean(results[env_name]["Always Withhold"]) - np.mean(
+            results[env_name]["Always Respond"]
+        )
         print(f"diff={diff:.1f}  {'← EARLY TERM' if diff > 0.5 else ''}")
 
     # ── Plot ──────────────────────────────────────────────────────────────────
-    n_envs   = len(ENVS)
-    bar_w    = 0.35
-    x        = np.arange(n_envs)
-    offsets  = [-bar_w / 2, bar_w / 2]
+    n_envs = len(ENVS)
+    bar_w = 0.35
+    x = np.arange(n_envs)
+    offsets = [-bar_w / 2, bar_w / 2]
 
     fig, ax = plt.subplots(figsize=(16, 6), constrained_layout=True)
 
     for (pol_name, cfg), offset in zip(POLICIES.items(), offsets):
         means = [np.mean(results[e][pol_name]) for e in ENVS]
-        sems  = [np.std(results[e][pol_name]) / np.sqrt(args.n_trials) for e in ENVS]
-        bars = ax.bar(x + offset, means, bar_w,
-                      label=pol_name, color=cfg["color"], alpha=0.85, edgecolor="white")
-        ax.errorbar(x + offset, means, yerr=sems, fmt="none",
-                    color="black", capsize=3, lw=1.2)
+        sems = [np.std(results[e][pol_name]) / np.sqrt(args.n_trials) for e in ENVS]
+        bars = ax.bar(
+            x + offset,
+            means,
+            bar_w,
+            label=pol_name,
+            color=cfg["color"],
+            alpha=0.85,
+            edgecolor="white",
+        )
+        ax.errorbar(
+            x + offset, means, yerr=sems, fmt="none", color="black", capsize=3, lw=1.2
+        )
 
     # Shade environments with early termination and annotate diff
     for i, env_name in enumerate(ENVS):
@@ -115,17 +125,27 @@ def main():
         diff = m0 - m1
         if diff > 0.5:
             ax.axvspan(i - 0.5, i + 0.5, color="#FFEB3B", alpha=0.18, zorder=0)
-            ax.text(i, max(m0, m1) + 1.0, f"−{diff:.0f} steps",
-                    ha="center", va="bottom", fontsize=8,
-                    color="#D32F2F", fontweight="bold")
+            ax.text(
+                i,
+                max(m0, m1) + 1.0,
+                f"−{diff:.0f} steps",
+                ha="center",
+                va="bottom",
+                fontsize=8,
+                color="#D32F2F",
+                fontweight="bold",
+            )
 
     ax.set_xticks(x)
-    ax.set_xticklabels([ENV_SHORT[e] for e in ENVS], rotation=30, ha="right", fontsize=10)
+    ax.set_xticklabels(
+        [ENV_SHORT[e] for e in ENVS], rotation=30, ha="right", fontsize=10
+    )
     ax.set_ylabel("Mean trial length (steps)", fontsize=12)
     ax.set_title(
         f"Early-termination on respond: average trial length across NeuroGym environments\n"
         f"({args.n_trials} trials each · yellow = early-termination environment)",
-        fontsize=12, fontweight="bold",
+        fontsize=12,
+        fontweight="bold",
     )
     ax.legend(fontsize=11)
     ax.spines["top"].set_visible(False)

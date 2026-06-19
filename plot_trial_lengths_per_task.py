@@ -16,9 +16,9 @@ import numpy as np
 
 from neurogym_wrapper import NeuroGymInfoWrapper
 
-OUTPUT   = sys.argv[1] if len(sys.argv) > 1 else "trial_lengths_per_task.png"
+OUTPUT = sys.argv[1] if len(sys.argv) > 1 else "trial_lengths_per_task.png"
 N_TRIALS = 500
-SEED     = 42
+SEED = 42
 
 ENVS = [
     "GoNogo-v0",
@@ -35,17 +35,17 @@ ENVS = [
 ]
 
 ENV_SHORT = {
-    "GoNogo-v0":                                "GoNogo",
-    "ContextDecisionMaking-v0":                 "ContextDM",
-    "DelayComparison-v0":                       "DelayComp",
-    "DelayMatchSample-v0":                      "DMS",
-    "DelayMatchSampleDistractor1D-v0":          "DMSD1D",
-    "DelayPairedAssociation-v0":                "DelayPA",
-    "IntervalDiscrimination-v0":                "IntervalDisc",
-    "MultiSensoryIntegration-v0":               "MultiSens",
-    "PerceptualDecisionMaking-v0":              "PDM",
+    "GoNogo-v0": "GoNogo",
+    "ContextDecisionMaking-v0": "ContextDM",
+    "DelayComparison-v0": "DelayComp",
+    "DelayMatchSample-v0": "DMS",
+    "DelayMatchSampleDistractor1D-v0": "DMSD1D",
+    "DelayPairedAssociation-v0": "DelayPA",
+    "IntervalDiscrimination-v0": "IntervalDisc",
+    "MultiSensoryIntegration-v0": "MultiSens",
+    "PerceptualDecisionMaking-v0": "PDM",
     "PerceptualDecisionMakingDelayResponse-v0": "PDM-DelayResp",
-    "ProbabilisticReasoning-v0":                "ProbReason",
+    "ProbabilisticReasoning-v0": "ProbReason",
 }
 
 
@@ -79,16 +79,23 @@ for env_name in ENVS:
     print(f"mean={m:.1f}  std={s:.1f}")
 
 # Sort by mean length
-order  = np.argsort(means)
-means  = [means[i] for i in order]
-stds   = [stds[i]  for i in order]
+order = np.argsort(means)
+means = [means[i] for i in order]
+stds = [stds[i] for i in order]
 labels = [labels[i] for i in order]
 
 fig, ax = plt.subplots(figsize=(7, 5))
 
 y = np.arange(len(ENVS))
-bars = ax.barh(y, means, xerr=stds, color="#4C72B0", alpha=0.85,
-               error_kw=dict(ecolor="#222", capsize=3, lw=1.2), edgecolor="white")
+bars = ax.barh(
+    y,
+    means,
+    xerr=stds,
+    color="#4C72B0",
+    alpha=0.85,
+    error_kw=dict(ecolor="#222", capsize=3, lw=1.2),
+    edgecolor="white",
+)
 
 for yi, (m, s) in enumerate(zip(means, stds)):
     ax.text(m + s + 0.4, yi, f"{m:.0f}", va="center", ha="left", fontsize=9)
@@ -96,7 +103,9 @@ for yi, (m, s) in enumerate(zip(means, stds)):
 ax.set_yticks(y)
 ax.set_yticklabels(labels, fontsize=10)
 ax.set_xlabel("Mean trial length (steps)", fontsize=11)
-ax.set_title("Average trial length per environment\n(oracle agent, 500 trials)", fontsize=11)
+ax.set_title(
+    "Average trial length per environment\n(oracle agent, 500 trials)", fontsize=11
+)
 ax.spines[["top", "right"]].set_visible(False)
 ax.grid(axis="x", alpha=0.3)
 

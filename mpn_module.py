@@ -48,8 +48,8 @@ class RandomInputProjection(nn.Module):
         bound = np.sqrt(6.0 / (input_dim + output_dim))
         nn.init.uniform_(b, -bound, bound)
 
-        self.register_buffer('W_rand', W)
-        self.register_buffer('b_rand', b)
+        self.register_buffer("W_rand", W)
+        self.register_buffer("b_rand", b)
 
         self.input_dim = input_dim
         self.output_dim = output_dim
@@ -85,7 +85,7 @@ class MPNLayer(nn.Module):
         self,
         input_dim: int,
         hidden_dim: int,
-        activation: str = 'tanh',
+        activation: str = "tanh",
         bias: bool = True,
         freeze_plasticity: bool = False,
         lambda_max: float = 0.95,
@@ -108,27 +108,31 @@ class MPNLayer(nn.Module):
 
         # Long-term synaptic weights (trainable via backprop)
         # Shape: [hidden_dim, input_dim]
-        self.W = nn.Parameter(torch.randn(hidden_dim, input_dim) * np.sqrt(2.0 / input_dim))
+        self.W = nn.Parameter(
+            torch.randn(hidden_dim, input_dim) * np.sqrt(2.0 / input_dim)
+        )
 
         # Bias term (trainable)
         if bias:
             self.b = nn.Parameter(torch.zeros(hidden_dim))
         else:
-            self.register_buffer('b', torch.zeros(hidden_dim))
+            self.register_buffer("b", torch.zeros(hidden_dim))
 
         # Activation function
-        if activation == 'relu':
+        if activation == "relu":
             self.activation = nn.ReLU()
-        elif activation == 'tanh':
+        elif activation == "tanh":
             self.activation = nn.Tanh()
-        elif activation == 'sigmoid':
+        elif activation == "sigmoid":
             self.activation = nn.Sigmoid()
-        elif activation == 'linear':
+        elif activation == "linear":
             self.activation = nn.Identity()
         else:
             raise ValueError(f"Unknown activation: {activation}")
 
-    def init_state(self, batch_size: int, device: Optional[torch.device] = None) -> torch.Tensor:
+    def init_state(
+        self, batch_size: int, device: Optional[torch.device] = None
+    ) -> torch.Tensor:
         """
         Initialize the synaptic modulation matrix M to zeros.
 
@@ -141,13 +145,11 @@ class MPNLayer(nn.Module):
         """
         if device is None:
             device = self.W.device
-            
+
         return torch.zeros(batch_size, self.hidden_dim, self.input_dim, device=device)
 
     def forward(
-        self,
-        x: torch.Tensor,
-        state: Optional[torch.Tensor] = None
+        self, x: torch.Tensor, state: Optional[torch.Tensor] = None
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Forward pass with Hebbian plasticity update.
@@ -199,7 +201,9 @@ class MPNLayer(nn.Module):
             # x shape: [batch_size, input_dim, 1]
             # W_modulated @ x: [batch_size, hidden_dim, 1]
             # Result: [batch_size, hidden_dim]
-            y_tilde = self.b.unsqueeze(0) + torch.bmm(W_modulated, x.unsqueeze(2)).squeeze(2)
+            y_tilde = self.b.unsqueeze(0) + torch.bmm(
+                W_modulated, x.unsqueeze(2)
+            ).squeeze(2)
 
             # Apply activation
             h = self.activation(y_tilde)
@@ -251,7 +255,7 @@ class MPN(nn.Module):
         self,
         input_dim: int,
         hidden_dim: int,
-        activation: str = 'tanh',
+        activation: str = "tanh",
         freeze_plasticity: bool = False,
         lambda_max: float = 0.99,
         eta_init: float = 0.01,
@@ -276,14 +280,14 @@ class MPN(nn.Module):
             lambda_init=lambda_init,
         )
 
-    def init_state(self, batch_size: int, device: Optional[torch.device] = None) -> torch.Tensor:
+    def init_state(
+        self, batch_size: int, device: Optional[torch.device] = None
+    ) -> torch.Tensor:
         """Initialize the M matrix for a new episode."""
         return self.mpn_layer.init_state(batch_size, device)
 
     def forward(
-        self,
-        x: torch.Tensor,
-        state: Optional[torch.Tensor] = None
+        self, x: torch.Tensor, state: Optional[torch.Tensor] = None
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Forward pass through the MPN.
@@ -325,7 +329,8 @@ if __name__ == "__main__":
     for t in range(5):
         x = torch.randn(batch_size, 4)
         hidden, state = mpn(x, state)
-        print(f"Step {t}: M matrix mean = {state.mean().item():.4f}, std = {state.std().item():.4f}")
+        print(
+            f"Step {t}: M matrix mean = {state.mean().item():.4f}, std = {state.std().item():.4f}"
+        )
 
     print("\nMPN module test completed!")
-

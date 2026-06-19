@@ -23,21 +23,21 @@ import torch
 sys.path.insert(0, "/research/harris/joe/mpn-rl")
 from main_a2c import ActorCriticNet
 
-TAG    = sys.argv[1] if len(sys.argv) > 1 else "ng-sweep-v1"
+TAG = sys.argv[1] if len(sys.argv) > 1 else "ng-sweep-v1"
 OUTPUT = sys.argv[2] if len(sys.argv) > 2 else "id_mpn_curve.png"
-SEED   = int(sys.argv[3]) if len(sys.argv) > 3 else 7
-ENV    = sys.argv[4] if len(sys.argv) > 4 else "IntervalDiscrimination-v0"
-TAGS   = [t.strip() for t in TAG.split(",")]
+SEED = int(sys.argv[3]) if len(sys.argv) > 3 else 7
+ENV = sys.argv[4] if len(sys.argv) > 4 else "IntervalDiscrimination-v0"
+TAGS = [t.strip() for t in TAG.split(",")]
 SMOOTH = 50
 
 ENV_CONFIG = {
-    "IntervalDiscrimination-v0": {"ch1": "Stim 1",  "ch2": "Stim 2"},
-    "DelayMatchSample-v0":       {"ch1": "Sample",   "ch2": "Test"},
+    "IntervalDiscrimination-v0": {"ch1": "Stim 1", "ch2": "Stim 2"},
+    "DelayMatchSample-v0": {"ch1": "Sample", "ch2": "Test"},
 }
 _ecfg = ENV_CONFIG.get(ENV, {"ch1": "Stim 1", "ch2": "Stim 2"})
 
 MODEL_COLORS = {
-    "mpn":        "#2ca02c",
+    "mpn": "#2ca02c",
     "mpn-frozen": "#d62728",
 }
 
@@ -94,7 +94,9 @@ best_exps = con.execute(f"""
 con.close()
 
 for _, row in best_exps.iterrows():
-    print(f"Best sweep for {row['model_type']}: tag={row['tag']}  peak={row['peak_reward']:.3f}  exp={row['experiment_name']}")
+    print(
+        f"Best sweep for {row['model_type']}: tag={row['tag']}  peak={row['peak_reward']:.3f}  exp={row['experiment_name']}"
+    )
 
 if best_exps.empty:
     print(f"No data found for {ENV} with tags={TAGS}.")
@@ -104,6 +106,7 @@ if best_exps.empty:
 # Load training curve time series
 # ---------------------------------------------------------------------------
 
+
 def load_training_curve(exp_name):
     episodes, rewards = [], []
     with open(f"experiments/{exp_name}/metrics.jsonl") as f:
@@ -112,9 +115,10 @@ def load_training_curve(exp_name):
             episodes.append(d["episode"])
             rewards.append(d["reward"])
     episodes = np.array(episodes)
-    rewards  = np.array(rewards)
-    order    = np.argsort(episodes)
+    rewards = np.array(rewards)
+    order = np.argsort(episodes)
     return episodes[order], rewards[order]
+
 
 training_curves = {}
 for _, row in best_exps.iterrows():
@@ -124,27 +128,32 @@ for _, row in best_exps.iterrows():
 # Load trained models
 # ---------------------------------------------------------------------------
 
+
 def load_model(exp_name):
-    cfg   = json.load(open(f"experiments/{exp_name}/config.json"))
-    env   = ngym.make(ENV, dt=100)
+    cfg = json.load(open(f"experiments/{exp_name}/config.json"))
+    env = ngym.make(ENV, dt=100)
     model = ActorCriticNet(
-        input_dim  = env.observation_space.shape[0],
-        action_dim = env.action_space.n,
-        hidden_dim = cfg["hidden_dim"],
-        core_type  = cfg["model_type"],
-        activation = cfg.get("activation", "tanh"),
-        lambda_max = cfg.get("lambda_max", 0.99),
-        eta_init   = cfg.get("eta_init", 0.01),
-        lambda_init= cfg.get("lambda_init", 0.99),
-        num_layers = cfg["num_layers"],
-        mpn_bias   = cfg.get("mpn_bias", True),
+        input_dim=env.observation_space.shape[0],
+        action_dim=env.action_space.n,
+        hidden_dim=cfg["hidden_dim"],
+        core_type=cfg["model_type"],
+        activation=cfg.get("activation", "tanh"),
+        lambda_max=cfg.get("lambda_max", 0.99),
+        eta_init=cfg.get("eta_init", 0.01),
+        lambda_init=cfg.get("lambda_init", 0.99),
+        num_layers=cfg["num_layers"],
+        mpn_bias=cfg.get("mpn_bias", True),
     )
-    ckpt = torch.load(f"experiments/{exp_name}/checkpoints/best_model.pt",
-                      map_location="cpu", weights_only=False)
+    ckpt = torch.load(
+        f"experiments/{exp_name}/checkpoints/best_model.pt",
+        map_location="cpu",
+        weights_only=False,
+    )
     model.load_state_dict(ckpt["model_state_dict"])
     model.eval()
     env.close()
     return model
+
 
 loaded_models = {}
 for _, row in best_exps.iterrows():
@@ -153,6 +162,7 @@ for _, row in best_exps.iterrows():
 # ---------------------------------------------------------------------------
 # Collect sample trials
 # ---------------------------------------------------------------------------
+
 
 def collect_trials(model, start_seed=7, max_steps=500):
     """Collect one trial per unique ground-truth outcome."""
@@ -186,6 +196,7 @@ def collect_trials(model, start_seed=7, max_steps=500):
     model.train()
     return list(seen_outcomes.values())
 
+
 def get_trial_actions(trial_list):
     result = []
     for t_obs, _, _ in trial_list:
@@ -202,8 +213,9 @@ def get_trial_actions(trial_list):
         result.append(actions)
     return result
 
+
 mpn_model = loaded_models.get("mpn")
-trials        = collect_trials(mpn_model, start_seed=SEED)
+trials = collect_trials(mpn_model, start_seed=SEED)
 trial_actions = get_trial_actions(trials)
 
 # ---------------------------------------------------------------------------
@@ -213,12 +225,12 @@ trial_actions = get_trial_actions(trials)
 STIM_COLOR = "#7b2d8b"
 
 CHANNEL_DEFS = [
-    ("MPN-frozen",   MODEL_COLORS["mpn-frozen"]),
-    ("MPN",          MODEL_COLORS["mpn"]),
+    ("MPN-frozen", MODEL_COLORS["mpn-frozen"]),
+    ("MPN", MODEL_COLORS["mpn"]),
     ("Ground Truth", "#444444"),
-    (_ecfg["ch1"],   STIM_COLOR),
-    (_ecfg["ch2"],   STIM_COLOR),
-    ("Fixation",     "#888888"),
+    (_ecfg["ch1"], STIM_COLOR),
+    (_ecfg["ch2"], STIM_COLOR),
+    ("Fixation", "#888888"),
 ]
 
 OFFSET = 3.5
@@ -229,8 +241,8 @@ def plot_training_curve(ax):
         color = MODEL_COLORS[mt]
         label = "MPN" if mt == "mpn" else "MPN-frozen"
         if len(rewards) >= SMOOTH:
-            smoothed      = np.convolve(rewards, np.ones(SMOOTH) / SMOOTH, mode="valid")
-            smooth_frames = frames[SMOOTH - 1:]
+            smoothed = np.convolve(rewards, np.ones(SMOOTH) / SMOOTH, mode="valid")
+            smooth_frames = frames[SMOOTH - 1 :]
             ax.plot(smooth_frames, smoothed, color=color, linewidth=2, label=label)
         else:
             ax.plot(frames, rewards, color=color, linewidth=2, label=label)
@@ -247,7 +259,7 @@ def plot_trial_panel(ax, t_obs, t_gt, t_rew, actions, show_ylabels=True):
 
     channels = [
         actions.get("mpn-frozen", np.zeros(len(t_obs))),
-        actions.get("mpn",        np.zeros(len(t_obs))),
+        actions.get("mpn", np.zeros(len(t_obs))),
         np.full(len(t_obs), max(t_gt), dtype=float),
         t_obs[:, 1],
         t_obs[:, 2],
@@ -259,14 +271,26 @@ def plot_trial_panel(ax, t_obs, t_gt, t_rew, actions, show_ylabels=True):
         ax.step(t_ms, signal + offset, where="post", color=color, linewidth=1.5)
         ref_vals = [0.0, 1.0, 2.0] if ci < 3 else [0.0, 1.0]
         for val in ref_vals:
-            ax.hlines(offset + val, t_ms[0], t_ms[-1],
-                      color="#222222", linewidth=0.8, linestyle=(0, (8, 3)), alpha=0.7, zorder=1)
+            ax.hlines(
+                offset + val,
+                t_ms[0],
+                t_ms[-1],
+                color="#222222",
+                linewidth=0.8,
+                linestyle=(0, (8, 3)),
+                alpha=0.7,
+                zorder=1,
+            )
 
-    mid_positions = [ci * OFFSET + (1.0 if ci < 3 else 0.5) for ci in range(len(CHANNEL_DEFS))]
+    mid_positions = [
+        ci * OFFSET + (1.0 if ci < 3 else 0.5) for ci in range(len(CHANNEL_DEFS))
+    ]
 
     if show_ylabels:
         ax.set_yticks(mid_positions)
-        ax.set_yticklabels([lbl for lbl, _ in CHANNEL_DEFS], fontsize=14, fontweight="bold")
+        ax.set_yticklabels(
+            [lbl for lbl, _ in CHANNEL_DEFS], fontsize=14, fontweight="bold"
+        )
         for tick, (_, color) in zip(ax.get_yticklabels(), CHANNEL_DEFS):
             tick.set_color(color)
         ax.tick_params(axis="y", length=0, pad=5)
@@ -275,18 +299,27 @@ def plot_trial_panel(ax, t_obs, t_gt, t_rew, actions, show_ylabels=True):
 
     fix_off = np.where(t_obs[:, 0] == 0)[0]
     if len(fix_off):
-        dec_idx   = fix_off[0]
-        y_min     = -0.3
-        y_max     = (len(CHANNEL_DEFS) - 1) * OFFSET + 2.5
-        fix1_y    = (len(CHANNEL_DEFS) - 1) * OFFSET + 1.0
+        dec_idx = fix_off[0]
+        y_min = -0.3
+        y_max = (len(CHANNEL_DEFS) - 1) * OFFSET + 2.5
+        fix1_y = (len(CHANNEL_DEFS) - 1) * OFFSET + 1.0
         span_ymax = (fix1_y - y_min) / (y_max - y_min)
-        ax.axvspan(t_ms[dec_idx], t_ms[dec_idx] + 1, ymin=0, ymax=span_ymax,
-                   color="#ff7f0e", alpha=0.25, zorder=0)
+        ax.axvspan(
+            t_ms[dec_idx],
+            t_ms[dec_idx] + 1,
+            ymin=0,
+            ymax=span_ymax,
+            color="#ff7f0e",
+            alpha=0.25,
+            zorder=0,
+        )
 
     trial_len = len(t_obs)
     ax.set_xlim(0, trial_len - 1)
     ax.set_xticks(np.arange(0, trial_len + 1))
-    ax.set_xticklabels([str(x) if x % 5 == 0 else "" for x in np.arange(0, trial_len + 1)])
+    ax.set_xticklabels(
+        [str(x) if x % 5 == 0 else "" for x in np.arange(0, trial_len + 1)]
+    )
     ax.set_ylim(-0.3, (len(CHANNEL_DEFS) - 1) * OFFSET + 2.5)
     ax.tick_params(labelsize=13)
     ax.grid(axis="x", alpha=0.2, zorder=0)
@@ -298,18 +331,31 @@ def plot_trial_panel(ax, t_obs, t_gt, t_rew, actions, show_ylabels=True):
 # Figure 1: training curve + 1 trial
 # ---------------------------------------------------------------------------
 
+
 def make_figure():
     fig = plt.figure(figsize=(26, 7.5))
     gs_outer = gridspec.GridSpec(1, 2, width_ratios=[1.5, 2.4], wspace=0.3, figure=fig)
-    gs_trials = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_outer[1], wspace=0.12)
+    gs_trials = gridspec.GridSpecFromSubplotSpec(
+        1, 2, subplot_spec=gs_outer[1], wspace=0.12
+    )
     ax_curve = fig.add_subplot(gs_outer[0])
-    ax_t1    = fig.add_subplot(gs_trials[0])
-    ax_t2    = fig.add_subplot(gs_trials[1])
+    ax_t1 = fig.add_subplot(gs_trials[0])
+    ax_t2 = fig.add_subplot(gs_trials[1])
     return fig, ax_curve, ax_t1, ax_t2
 
+
 def add_panel_label(ax, label):
-    ax.text(-0.08, 1.05, label, transform=ax.transAxes,
-            fontsize=14, fontweight="bold", va="bottom", ha="right")
+    ax.text(
+        -0.08,
+        1.05,
+        label,
+        transform=ax.transAxes,
+        fontsize=14,
+        fontweight="bold",
+        va="bottom",
+        ha="right",
+    )
+
 
 fig1, ax_curve1, ax_t1, ax_t2 = make_figure()
 plot_training_curve(ax_curve1)

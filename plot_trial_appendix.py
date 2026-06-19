@@ -22,16 +22,17 @@ import torch
 sys.path.insert(0, "/research/harris/joe/mpn-rl")
 from main_a2c import ActorCriticNet
 
-ENV    = sys.argv[1] if len(sys.argv) > 1 else "PerceptualDecisionMaking-v0"
+ENV = sys.argv[1] if len(sys.argv) > 1 else "PerceptualDecisionMaking-v0"
 OUTPUT = sys.argv[2] if len(sys.argv) > 2 else "trial_appendix.png"
-SEED   = int(sys.argv[3]) if len(sys.argv) > 3 else 0
+SEED = int(sys.argv[3]) if len(sys.argv) > 3 else 0
 
 TAGS = ["ng-sweep-v1", "ng-sweep-v2", "ng-sweep-v3", "ng-sweep-v4"]
 
 MODEL_COLOR = "#2ca02c"
-GT_COLOR    = "#444444"
-FIX_COLOR   = "#888888"
-STIM_COLOR  = "#7b2d8b"
+GT_COLOR = "#444444"
+FIX_COLOR = "#888888"
+STIM_COLOR = "#7b2d8b"
+
 
 # Per-environment channel extraction: returns list of (label, color, signal_array)
 # All signals should be in [0, 1].
@@ -40,28 +41,30 @@ def extract_channels(t_obs, actions):
     if t_obs.shape[1] == 3:
         # PDM / PDMDR: [fixation, stim1, stim2]
         return [
-            ("MPN",          MODEL_COLOR, actions),
-            ("Stim 1",       STIM_COLOR,  t_obs[:, 1]),
-            ("Stim 2",       STIM_COLOR,  t_obs[:, 2]),
-            ("Fixation",     FIX_COLOR,   fix),
+            ("MPN", MODEL_COLOR, actions),
+            ("Stim 1", STIM_COLOR, t_obs[:, 1]),
+            ("Stim 2", STIM_COLOR, t_obs[:, 2]),
+            ("Fixation", FIX_COLOR, fix),
         ]
     else:
         # ProbabilisticReasoning: [fixation, left_stims(1:21), right_stims(21:41)]
-        left  = t_obs[:, 1:21].sum(axis=1).clip(0, 1)
+        left = t_obs[:, 1:21].sum(axis=1).clip(0, 1)
         right = t_obs[:, 21:41].sum(axis=1).clip(0, 1)
         return [
-            ("MPN",          MODEL_COLOR, actions),
-            ("Left stim",    STIM_COLOR,  left),
-            ("Right stim",   STIM_COLOR,  right),
-            ("Fixation",     FIX_COLOR,   fix),
+            ("MPN", MODEL_COLOR, actions),
+            ("Left stim", STIM_COLOR, left),
+            ("Right stim", STIM_COLOR, right),
+            ("Fixation", FIX_COLOR, fix),
         ]
+
 
 # ---------------------------------------------------------------------------
 # Find best experiment
 # ---------------------------------------------------------------------------
 
 con = duckdb.connect()
-row = con.execute("""
+row = con.execute(
+    """
     WITH windowed AS (
         SELECT experiment_name,
             AVG(reward) OVER (
@@ -80,7 +83,9 @@ row = con.execute("""
       AND c.model_type = 'mpn'
     GROUP BY c.experiment_name
     ORDER BY peak DESC LIMIT 1
-""", [ENV]).fetchone()
+""",
+    [ENV],
+).fetchone()
 con.close()
 
 if row is None:
@@ -94,22 +99,25 @@ print(f"Best MPN for {ENV}: {exp_name}  peak={peak:.3f}")
 # Load model
 # ---------------------------------------------------------------------------
 
-cfg   = json.load(open(f"experiments/{exp_name}/config.json"))
-env0  = ngym.make(ENV, dt=100)
+cfg = json.load(open(f"experiments/{exp_name}/config.json"))
+env0 = ngym.make(ENV, dt=100)
 model = ActorCriticNet(
-    input_dim  = env0.observation_space.shape[0],
-    action_dim = env0.action_space.n,
-    hidden_dim = cfg["hidden_dim"],
-    core_type  = cfg["model_type"],
-    activation = cfg.get("activation", "tanh"),
-    lambda_max = cfg.get("lambda_max", 0.99),
-    eta_init   = cfg.get("eta_init", 0.01),
-    lambda_init= cfg.get("lambda_init", 0.99),
-    num_layers = cfg["num_layers"],
-    mpn_bias   = cfg.get("mpn_bias", True),
+    input_dim=env0.observation_space.shape[0],
+    action_dim=env0.action_space.n,
+    hidden_dim=cfg["hidden_dim"],
+    core_type=cfg["model_type"],
+    activation=cfg.get("activation", "tanh"),
+    lambda_max=cfg.get("lambda_max", 0.99),
+    eta_init=cfg.get("eta_init", 0.01),
+    lambda_init=cfg.get("lambda_init", 0.99),
+    num_layers=cfg["num_layers"],
+    mpn_bias=cfg.get("mpn_bias", True),
 )
-ckpt = torch.load(f"experiments/{exp_name}/checkpoints/best_model.pt",
-                  map_location="cpu", weights_only=False)
+ckpt = torch.load(
+    f"experiments/{exp_name}/checkpoints/best_model.pt",
+    map_location="cpu",
+    weights_only=False,
+)
 model.load_state_dict(ckpt["model_state_dict"])
 model.eval()
 env0.close()
@@ -119,6 +127,7 @@ env0.close()
 # ---------------------------------------------------------------------------
 
 DECISION_PAD = 2  # minimum decision-period frames to show
+
 
 def collect_trials(n=3, start_seed=0, max_steps=500):
     trials = []
@@ -167,7 +176,7 @@ def collect_trials(n=3, start_seed=0, max_steps=500):
             if len(dec_frames) < DECISION_PAD:
                 first_dec = int(dec_frames[0])
                 pad_obs = np.array(t_obs)[first_dec].copy()
-                pad_gt  = int(t_gt_arr[first_dec])
+                pad_gt = int(t_gt_arr[first_dec])
                 pad_act = t_act[first_dec]
                 for _ in range(DECISION_PAD - len(dec_frames)):
                     t_obs.append(pad_obs.copy())
@@ -178,6 +187,7 @@ def collect_trials(n=3, start_seed=0, max_steps=500):
             trials.append((np.array(t_obs), t_gt, t_rew, np.array(t_act, dtype=float)))
             s += 1
     return trials[:n]
+
 
 trials = collect_trials(n=3, start_seed=SEED)
 
@@ -200,31 +210,52 @@ for col, (t_obs, t_gt, t_rew, t_act) in enumerate(trials):
     gt_signal = np.full(len(t_obs), float(max(t_gt)))
     all_rows = [
         (channels[0][0], channels[0][1], channels[0][2]),  # MPN action
-        ("Ground Truth", GT_COLOR,       gt_signal),
+        ("Ground Truth", GT_COLOR, gt_signal),
     ] + [(lbl, col_, sig) for lbl, col_, sig in channels[1:]]
 
     for ci, (lbl, color, signal) in enumerate(all_rows):
         off = ci * OFFSET
-        ax.step(np.arange(len(signal)), signal + off, where="post",
-                color=color, linewidth=1.5)
+        ax.step(
+            np.arange(len(signal)),
+            signal + off,
+            where="post",
+            color=color,
+            linewidth=1.5,
+        )
         ref_vals = [0.0, 1.0, 2.0] if ci < 2 else [0.0, 1.0]
         for val in ref_vals:
-            ax.hlines(off + val, 0, len(signal) - 1,
-                      color="#222222", linewidth=0.8,
-                      linestyle=(0, (8, 3)), alpha=0.7, zorder=1)
+            ax.hlines(
+                off + val,
+                0,
+                len(signal) - 1,
+                color="#222222",
+                linewidth=0.8,
+                linestyle=(0, (8, 3)),
+                alpha=0.7,
+                zorder=1,
+            )
 
     # Decision period shading — shade all frames where gt > 0
     dec_frames = np.where(np.array(t_gt) > 0)[0]
     if len(dec_frames):
         dec_start = dec_frames[0]
-        dec_end   = dec_frames[-1] + 1
-        ax.axvspan(dec_start, dec_end - 1, ymin=0, ymax=1,
-                   color="#ff7f0e", alpha=0.25, zorder=0)
+        dec_end = dec_frames[-1] + 1
+        ax.axvspan(
+            dec_start,
+            dec_end - 1,
+            ymin=0,
+            ymax=1,
+            color="#ff7f0e",
+            alpha=0.25,
+            zorder=0,
+        )
 
     trial_len = len(t_obs)
     ax.set_xlim(0, trial_len)
     ax.set_xticks(np.arange(0, trial_len + 1))
-    ax.set_xticklabels([str(x) if x % 5 == 0 else "" for x in np.arange(0, trial_len + 1)])
+    ax.set_xticklabels(
+        [str(x) if x % 5 == 0 else "" for x in np.arange(0, trial_len + 1)]
+    )
     ax.set_ylim(-0.3, (len(all_rows) - 1) * OFFSET + 2.5)
     ax.set_xlabel("Frame", fontsize=13)
     ax.grid(axis="x", alpha=0.2, zorder=0)
@@ -232,12 +263,12 @@ for col, (t_obs, t_gt, t_rew, t_act) in enumerate(trials):
 
     if col == 0:
         mid_positions = [
-            ci * OFFSET + (1.0 if ci < 2 else 0.5)
-            for ci in range(len(all_rows))
+            ci * OFFSET + (1.0 if ci < 2 else 0.5) for ci in range(len(all_rows))
         ]
         ax.set_yticks(mid_positions)
-        ax.set_yticklabels([lbl for lbl, _, _ in all_rows],
-                           fontsize=11, fontweight="bold")
+        ax.set_yticklabels(
+            [lbl for lbl, _, _ in all_rows], fontsize=11, fontweight="bold"
+        )
         for tick, (_, color, _) in zip(ax.get_yticklabels(), all_rows):
             tick.set_color(color)
         ax.tick_params(axis="y", length=0, pad=5)

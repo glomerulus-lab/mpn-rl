@@ -85,7 +85,7 @@ class MPNModule(ModuleBase):
         self,
         input_size: int,
         hidden_size: int,
-        activation: str = 'tanh',
+        activation: str = "tanh",
         bias: bool = True,
         freeze_plasticity: bool = False,
         lambda_max: float = 0.99,
@@ -190,6 +190,7 @@ class MPNModule(ModuleBase):
     @property
     def recurrent_mode(self):
         from torchrl.modules.tensordict_module.rnn import recurrent_mode
+
         rm = recurrent_mode()
         if rm is None:
             return bool(self._recurrent_mode)
@@ -251,6 +252,7 @@ class MPNModule(ModuleBase):
         splits = None
         if self.recurrent_mode and is_init is not None and is_init[..., 1:].any():
             from torchrl.objectives.value.utils import _get_num_per_traj_init
+
             splits = _get_num_per_traj_init(is_init)
             tensordict_shaped_shape = tensordict_shaped.shape
             tensordict_shaped = _split_and_pad_sequence(
@@ -270,11 +272,17 @@ class MPNModule(ModuleBase):
         dtype = value.dtype
 
         # In non-recurrent mode, reset state at episode boundaries (mirrors LSTM line 734-741)
-        if not self.recurrent_mode and recurrent_state_m is not None and is_init is not None:
+        if (
+            not self.recurrent_mode
+            and recurrent_state_m is not None
+            and is_init is not None
+        ):
             is_init_expand = expand_as_right(is_init, recurrent_state_m)
             recurrent_state_m = torch.where(is_init_expand, 0, recurrent_state_m)
 
-        val, new_state_m = self._mpn(value, batch, steps, device, dtype, recurrent_state_m)
+        val, new_state_m = self._mpn(
+            value, batch, steps, device, dtype, recurrent_state_m
+        )
 
         tensordict_shaped.set(self.out_keys[0], val)
         tensordict_shaped.set(self.out_keys[1], new_state_m)
@@ -336,9 +344,12 @@ class MPNModule(ModuleBase):
         # Initialize state if not provided
         if state_m_in is None:
             state_m_in = torch.zeros(
-                batch, steps,
-                self.hidden_size, self._mpn_input_dim,
-                device=device, dtype=dtype
+                batch,
+                steps,
+                self.hidden_size,
+                self._mpn_input_dim,
+                device=device,
+                dtype=dtype,
             )
 
         # Only the first step's stored state is used as the starting point.
@@ -355,8 +366,12 @@ class MPNModule(ModuleBase):
 
             output = torch.stack(outputs, dim=1)
             state_m_out = torch.zeros(
-                batch, steps, self.hidden_size, self._mpn_input_dim,
-                device=device, dtype=dtype
+                batch,
+                steps,
+                self.hidden_size,
+                self._mpn_input_dim,
+                device=device,
+                dtype=dtype,
             ).detach()
         else:
             outputs = []
@@ -371,7 +386,7 @@ class MPNModule(ModuleBase):
             # The stored final state is used as state[:, 0] for the next segment.
             state_m_out = torch.stack(
                 [torch.zeros_like(_state_m) for _ in range(steps - 1)] + [_state_m],
-                dim=1
+                dim=1,
             )
 
         return output, state_m_out
@@ -386,6 +401,7 @@ class MPNModule(ModuleBase):
         Returns:
             TensorDictPrimer that initializes recurrent states
         """
+
         def make_tuple(key):
             if isinstance(key, tuple):
                 return key
@@ -414,23 +430,21 @@ if __name__ == "__main__":
     print("Testing MPNModule with TorchRL...")
 
     # Test 1: Basic forward pass
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("Test 1: Basic forward pass")
-    print("="*50)
+    print("=" * 50)
 
-    mpn = MPNModule(
-        input_size=4,
-        hidden_size=8,
-        in_key="observation",
-        out_key="embed"
-    )
+    mpn = MPNModule(input_size=4, hidden_size=8, in_key="observation", out_key="embed")
 
     # Create sample tensordict
     batch_size = 3
-    td = TensorDict({
-        "observation": torch.randn(batch_size, 4),
-        "is_init": torch.tensor([True, False, True])  # Reset first and third
-    }, batch_size=[batch_size])
+    td = TensorDict(
+        {
+            "observation": torch.randn(batch_size, 4),
+            "is_init": torch.tensor([True, False, True]),  # Reset first and third
+        },
+        batch_size=[batch_size],
+    )
 
     print(f"Input keys: {list(td.keys())}")
 
@@ -444,9 +458,9 @@ if __name__ == "__main__":
     print(f"MPN out_keys: {mpn.out_keys}")
 
     # Test 2: State persistence
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("Test 2: State persistence across steps")
-    print("="*50)
+    print("=" * 50)
 
     # Copy state to input for next step
     td["recurrent_state_m"] = td["next", "recurrent_state_m"].clone()
@@ -461,9 +475,9 @@ if __name__ == "__main__":
     print(f"State mean: {new_state.mean().item():.4f}")
 
     # Test 3: Primer
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("Test 3: TensorDictPrimer")
-    print("="*50)
+    print("=" * 50)
 
     primer = mpn.make_tensordict_primer()
     print(f"Primer type: {type(primer)}")
@@ -471,54 +485,50 @@ if __name__ == "__main__":
     print("Skipping primer test - will test with actual environment")
 
     # Test 4: Use in sequential pipeline
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("Test 4: TensorDictSequential pipeline")
-    print("="*50)
+    print("=" * 50)
 
     from tensordict.nn import TensorDictModule, TensorDictSequential
 
     mpn_module = MPNModule(
-        input_size=4,
-        hidden_size=64,
-        in_key="observation",
-        out_key="embed"
+        input_size=4, hidden_size=64, in_key="observation", out_key="embed"
     )
 
     # MLP head
     mlp = nn.Linear(64, 2)
-    mlp_module = TensorDictModule(
-        mlp,
-        in_keys=["embed"],
-        out_keys=["action_value"]
-    )
+    mlp_module = TensorDictModule(mlp, in_keys=["embed"], out_keys=["action_value"])
 
     # Create sequential
     policy = TensorDictSequential(mpn_module, mlp_module)
 
     # Test forward
-    td_test = TensorDict({
-        "observation": torch.randn(5, 4),
-        "is_init": torch.zeros(5, dtype=torch.bool)
-    }, batch_size=[5])
+    td_test = TensorDict(
+        {"observation": torch.randn(5, 4), "is_init": torch.zeros(5, dtype=torch.bool)},
+        batch_size=[5],
+    )
 
     td_test = policy(td_test)
     print(f"Policy output keys: {list(td_test.keys())}")
     print(f"Action values shape: {td_test['action_value'].shape}")
 
     # Test 5: Episode simulation
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("Test 5: Multi-step episode simulation")
-    print("="*50)
+    print("=" * 50)
 
     mpn_sim = MPNModule(input_size=4, hidden_size=8)
     batch_size = 2
     num_steps = 5
 
     # Initialize episode
-    td_sim = TensorDict({
-        "observation": torch.randn(batch_size, 4),
-        "is_init": torch.ones(batch_size, dtype=torch.bool)  # Episode start
-    }, batch_size=[batch_size])
+    td_sim = TensorDict(
+        {
+            "observation": torch.randn(batch_size, 4),
+            "is_init": torch.ones(batch_size, dtype=torch.bool),  # Episode start
+        },
+        batch_size=[batch_size],
+    )
 
     print("Step-by-step M matrix evolution:")
     for step in range(num_steps):

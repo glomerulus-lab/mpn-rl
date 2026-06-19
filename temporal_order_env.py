@@ -72,9 +72,9 @@ class TemporalOrderEnv(gym.Env):
 
         # Pre-build observation array: shape (trial_len, 3)
         self._obs_array = np.zeros((self.trial_len, 3), dtype=np.float32)
-        self._obs_array[self._s1_step, 0] = 1.0          # S1
-        self._obs_array[self._s2_step, 1] = 1.0          # S2
-        self._obs_array[self.trial_len - 1, 2] = 1.0     # response cue
+        self._obs_array[self._s1_step, 0] = 1.0  # S1
+        self._obs_array[self._s2_step, 1] = 1.0  # S2
+        self._obs_array[self.trial_len - 1, 2] = 1.0  # response cue
 
         # Pre-build ground-truth array: gt only meaningful at response step
         self._gt_array = np.zeros(self.trial_len, dtype=np.int64)
@@ -94,7 +94,7 @@ class TemporalOrderEnv(gym.Env):
         return obs, {"gt": gt, "new_trial": True}
 
     def step(self, action):
-        is_response = (self._t_in_trial == self.trial_len - 1)
+        is_response = self._t_in_trial == self.trial_len - 1
 
         if is_response:
             gt = self.trial["ground_truth"]
@@ -154,8 +154,13 @@ class TemporalOrderRandEnv(gym.Env):
 
     metadata = {"render_modes": []}
 
-    def __init__(self, n_steps: int = 5, obs_dim: int = 16,
-                 vec_density: float = 0.5, vec_seed: int = 0):
+    def __init__(
+        self,
+        n_steps: int = 5,
+        obs_dim: int = 16,
+        vec_density: float = 0.5,
+        vec_seed: int = 0,
+    ):
         super().__init__()
         assert n_steps >= 2, "n_steps must be >= 2 to fit both stimuli"
         self.n_steps = n_steps
@@ -216,7 +221,7 @@ class TemporalOrderRandEnv(gym.Env):
         return obs, {"gt": gt, "new_trial": True}
 
     def step(self, action):
-        is_response = (self._t_in_trial == self.trial_len - 1)
+        is_response = self._t_in_trial == self.trial_len - 1
 
         if is_response:
             gt = self.trial["ground_truth"]
@@ -306,10 +311,15 @@ if __name__ == "__main__":
                 random_correct += 1
             trials_seen += 1
 
-    print(f"Oracle accuracy: {oracle_correct}/{n_trials} = {oracle_correct/n_trials:.1%}  (expect 100%)")
-    print(f"Random accuracy: {random_correct}/{n_trials} = {random_correct/n_trials:.1%}  (expect ~50%)")
+    print(
+        f"Oracle accuracy: {oracle_correct}/{n_trials} = {oracle_correct/n_trials:.1%}  (expect 100%)"
+    )
+    print(
+        f"Random accuracy: {random_correct}/{n_trials} = {random_correct/n_trials:.1%}  (expect ~50%)"
+    )
 
     print("\n=== Seeding reproducibility ===")
+
     def collect_trial_sequence(seed, n=5):
         e = TemporalOrderEnv(n_steps=5)
         e.reset(seed=seed)
@@ -333,7 +343,9 @@ if __name__ == "__main__":
     print("\n=== Two sample trials ===")
     obs, info = env.reset()
     for trial_num in range(2):
-        print(f"\n  Trial {trial_num+1}: S1@step{env._s1_step}, S2@step{env._s2_step}, GT={env.trial['ground_truth']}")
+        print(
+            f"\n  Trial {trial_num+1}: S1@step{env._s1_step}, S2@step{env._s2_step}, GT={env.trial['ground_truth']}"
+        )
         print(f"    t=0  obs={obs}")
         t = 1
         while True:

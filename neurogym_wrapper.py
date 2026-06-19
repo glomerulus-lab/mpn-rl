@@ -21,22 +21,21 @@ class NeuroGymInfoWrapper(gym.Wrapper):
 
     def step(self, action):
         # Capture GT BEFORE step (for the trial that's about to complete)
-        self._current_trial_gt = self.env.unwrapped.trial.get('ground_truth', None)
+        self._current_trial_gt = self.env.unwrapped.trial.get("ground_truth", None)
 
         obs, reward, done, truncated, info = self.env.step(action)
 
         # When new_trial=True, info['gt'] is already for the NEXT trial
         # Replace it with the captured GT from the completed trial
-        if info.get('new_trial', False):
+        if info.get("new_trial", False):
             if self._current_trial_gt is not None:
-                info['gt'] = self._current_trial_gt
+                info["gt"] = self._current_trial_gt
 
         self._last_info = info
         return obs, reward, done, truncated, info
 
     def reset(self, **kwargs):
         obs, info = self.env.reset(**kwargs)
-        self._current_trial_gt = self.env.unwrapped.trial.get('ground_truth', None)
+        self._current_trial_gt = self.env.unwrapped.trial.get("ground_truth", None)
         self._last_info = info
         return obs, info
-

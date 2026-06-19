@@ -20,26 +20,33 @@ import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
 
-_tags_arg = sys.argv[1] if len(sys.argv) > 1 else "ng-sweep-v1,ng-sweep-v2,ng-sweep-v3,ng-sweep-v4"
-TAGS      = [t.strip() for t in _tags_arg.split(",")]
-OUTPUT    = sys.argv[2] if len(sys.argv) > 2 else "custom_sweep_bar.png"
+_tags_arg = (
+    sys.argv[1]
+    if len(sys.argv) > 1
+    else "ng-sweep-v1,ng-sweep-v2,ng-sweep-v3,ng-sweep-v4"
+)
+TAGS = [t.strip() for t in _tags_arg.split(",")]
+OUTPUT = sys.argv[2] if len(sys.argv) > 2 else "custom_sweep_bar.png"
 
 MODEL_TYPES = ["mpn-frozen", "lstm", "mpn", "rnn"]
 
 MODEL_COLORS = {
-    "lstm":       "#1f77b4",
-    "mpn":        "#2ca02c",
+    "lstm": "#1f77b4",
+    "mpn": "#2ca02c",
     "mpn-frozen": "#d62728",
-    "rnn":        "#ff7f0e",
+    "rnn": "#ff7f0e",
 }
+
 
 def lighten(color, factor=0.5):
     r, g, b = mcolors.to_rgb(color)
     return (r + (1 - r) * factor, g + (1 - g) * factor, b + (1 - b) * factor)
 
+
 def darken(color, factor=0.4):
     r, g, b = mcolors.to_rgb(color)
     return (r * (1 - factor), g * (1 - factor), b * (1 - factor))
+
 
 LONG_LABEL_BREAKS = {
     "PerceptualDecisionMakingDelayResponse-v0": "PerceptualDecisionMaking\nDelayResponse",
@@ -137,12 +144,12 @@ ENVS = sorted(df["env_name"].unique())
 # Layout
 # ---------------------------------------------------------------------------
 
-n_envs   = len(ENVS)
+n_envs = len(ENVS)
 n_models = len(MODEL_TYPES)
-bar_w    = 0.12
-gap      = 0.05
-offsets  = np.arange(n_models) * bar_w - (n_models - 1) * bar_w / 2
-group_x  = np.arange(n_envs) * (n_models * bar_w + gap)
+bar_w = 0.12
+gap = 0.05
+offsets = np.arange(n_models) * bar_w - (n_models - 1) * bar_w / 2
+group_x = np.arange(n_envs) * (n_models * bar_w + gap)
 
 fig, ax = plt.subplots(figsize=(10, 4))
 
@@ -151,22 +158,42 @@ for j, mt in enumerate(MODEL_TYPES):
     for i, env in enumerate(ENVS):
         row_data = df[(df["env_name"] == env) & (df["model_type"] == mt)]
         has_data = not row_data.empty
-        xpos     = group_x[i] + offsets[j]
+        xpos = group_x[i] + offsets[j]
         if has_data:
             mean = float(row_data["mean_reward"].iloc[0])
-            std  = float(row_data["std_reward"].iloc[0])
-            std  = std if not np.isnan(std) else 0.0
+            std = float(row_data["std_reward"].iloc[0])
+            std = std if not np.isnan(std) else 0.0
             ax.bar(xpos, mean, width=bar_w, color=color, zorder=3)
-            ax.errorbar(xpos, mean, yerr=std, fmt="none", color=darken(color),
-                        capsize=1.5, linewidth=1.2, zorder=4)
+            ax.errorbar(
+                xpos,
+                mean,
+                yerr=std,
+                fmt="none",
+                color=darken(color),
+                capsize=1.5,
+                linewidth=1.2,
+                zorder=4,
+            )
         else:
-            ax.bar(xpos, 0.015, width=bar_w, color="none", edgecolor=color,
-                   linewidth=1.0, linestyle="--", zorder=3)
+            ax.bar(
+                xpos,
+                0.015,
+                width=bar_w,
+                color="none",
+                edgecolor=color,
+                linewidth=1.0,
+                linestyle="--",
+                zorder=3,
+            )
 
 ax.set_xticks(group_x)
 ax.set_xticklabels(
     [LONG_LABEL_BREAKS.get(e, e.replace("-v0", "")) for e in ENVS],
-    rotation=40, ha="right", rotation_mode="anchor", fontsize=9)
+    rotation=40,
+    ha="right",
+    rotation_mode="anchor",
+    fontsize=9,
+)
 ax.set_xlim(group_x[0] - 0.4, group_x[-1] + 0.4)
 ax.set_ylim(0, 1.0)
 ax.set_ylabel("Best Avg Reward", fontsize=10)
@@ -174,8 +201,17 @@ ax.grid(axis="y", alpha=0.3, zorder=0)
 ax.axhline(0, color="gray", linewidth=0.6)
 
 handles = [plt.Rectangle((0, 0), 1, 1, color=MODEL_COLORS[mt]) for mt in MODEL_TYPES]
-ax.legend(handles, MODEL_TYPES, title="Model", fontsize=8, title_fontsize=8,
-          loc="upper left", bbox_to_anchor=(1.01, 1), borderaxespad=0, framealpha=0.8)
+ax.legend(
+    handles,
+    MODEL_TYPES,
+    title="Model",
+    fontsize=8,
+    title_fontsize=8,
+    loc="upper left",
+    bbox_to_anchor=(1.01, 1),
+    borderaxespad=0,
+    framealpha=0.8,
+)
 
 plt.tight_layout()
 plt.savefig(OUTPUT, dpi=600, bbox_inches="tight")

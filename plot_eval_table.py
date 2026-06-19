@@ -21,11 +21,11 @@ import matplotlib.pyplot as plt
 sys.path.insert(0, str(Path(__file__).parent))
 from main_a2c import ActorCriticNet, _create_env_from_config, _evaluate_actorcritic
 
-OUTPUT       = sys.argv[1] if len(sys.argv) > 1 else "eval_table.png"
-TAG          = "ng-sweep-v1"
+OUTPUT = sys.argv[1] if len(sys.argv) > 1 else "eval_table.png"
+TAG = "ng-sweep-v1"
 NUM_EPISODES = 2000
-DEVICE       = torch.device("cpu")
-MODEL_ORDER  = ["lstm", "rnn", "mpn", "mpn-frozen"]
+DEVICE = torch.device("cpu")
+MODEL_ORDER = ["lstm", "rnn", "mpn", "mpn-frozen"]
 
 ENVS = [
     "MultiSensoryIntegration-v0",
@@ -35,10 +35,10 @@ ENVS = [
 ]
 
 ENV_LABELS = {
-    "MultiSensoryIntegration-v0":                "MultiSensoryIntegration",
-    "PerceptualDecisionMaking-v0":               "PerceptualDecisionMaking",
-    "PerceptualDecisionMakingDelayResponse-v0":  "PerceptualDecisionMaking\nDelayResponse",
-    "ProbabilisticReasoning-v0":                 "ProbabilisticReasoning",
+    "MultiSensoryIntegration-v0": "MultiSensoryIntegration",
+    "PerceptualDecisionMaking-v0": "PerceptualDecisionMaking",
+    "PerceptualDecisionMakingDelayResponse-v0": "PerceptualDecisionMaking\nDelayResponse",
+    "ProbabilisticReasoning-v0": "ProbabilisticReasoning",
 }
 
 # ---------------------------------------------------------------------------
@@ -55,7 +55,9 @@ con.execute("""
         ignore_errors = true
     )
 """)
-con.execute("CREATE VIEW configs AS SELECT * FROM read_json_auto('experiments/*/config.json', ignore_errors=true)")
+con.execute(
+    "CREATE VIEW configs AS SELECT * FROM read_json_auto('experiments/*/config.json', ignore_errors=true)"
+)
 
 env_filter = ", ".join(f"'{e}'" for e in ENVS)
 best_df = con.execute(f"""
@@ -92,12 +94,12 @@ con.close()
 results = {env: {} for env in ENVS}
 
 for _, row in best_df.iterrows():
-    exp_name   = row["experiment_name"]
-    env_name   = row["env_name"]
+    exp_name = row["experiment_name"]
+    env_name = row["env_name"]
     model_type = row["model_type"]
 
     ckpt_path = Path("experiments") / exp_name / "checkpoints" / "best_model.pt"
-    cfg_path  = Path("experiments") / exp_name / "config.json"
+    cfg_path = Path("experiments") / exp_name / "config.json"
 
     if not ckpt_path.exists():
         results[env_name][model_type] = (float("nan"), float("nan"))
@@ -108,16 +110,16 @@ for _, row in best_df.iterrows():
 
     env_tmp = _create_env_from_config(config)
     model = ActorCriticNet(
-        input_dim   = env_tmp.observation_space.shape[0],
-        action_dim  = env_tmp.action_space.n,
-        hidden_dim  = config.get("hidden_dim", 128),
-        core_type   = config.get("model_type", "lstm"),
-        activation  = config.get("activation", "tanh"),
-        lambda_max  = config.get("lambda_max", 0.99),
-        eta_init    = config.get("eta_init", 0.01),
-        lambda_init = config.get("lambda_init", 0.99),
-        num_layers  = config.get("num_layers", 1),
-        mpn_bias    = config.get("mpn_bias", True),
+        input_dim=env_tmp.observation_space.shape[0],
+        action_dim=env_tmp.action_space.n,
+        hidden_dim=config.get("hidden_dim", 128),
+        core_type=config.get("model_type", "lstm"),
+        activation=config.get("activation", "tanh"),
+        lambda_max=config.get("lambda_max", 0.99),
+        eta_init=config.get("eta_init", 0.01),
+        lambda_init=config.get("lambda_init", 0.99),
+        num_layers=config.get("num_layers", 1),
+        mpn_bias=config.get("mpn_bias", True),
     ).to(DEVICE)
     env_tmp.close()
 
@@ -126,8 +128,12 @@ for _, row in best_df.iterrows():
 
     print(f"Evaluating {model_type:12s} on {env_name}...")
     mean_r, std_r = _evaluate_actorcritic(
-        model, lambda cfg=config: _create_env_from_config(cfg),
-        NUM_EPISODES, config.get("max_episode_steps", 500), seed=0, device=DEVICE,
+        model,
+        lambda cfg=config: _create_env_from_config(cfg),
+        NUM_EPISODES,
+        config.get("max_episode_steps", 500),
+        seed=0,
+        device=DEVICE,
     )
     results[env_name][model_type] = (mean_r, std_r)
     print(f"  mean={mean_r:.4f}  std={std_r:.4f}")
@@ -137,13 +143,13 @@ for _, row in best_df.iterrows():
 # ---------------------------------------------------------------------------
 
 col_labels = [m.upper().replace("-", "\n") for m in MODEL_ORDER]
-row_labels  = [ENV_LABELS[e] for e in ENVS]
+row_labels = [ENV_LABELS[e] for e in ENVS]
 
-cell_text   = []
+cell_text = []
 cell_colors = []
 
 for env in ENVS:
-    row_text   = []
+    row_text = []
     row_colors = []
     means = [results[env].get(m, (float("nan"), float("nan")))[0] for m in MODEL_ORDER]
     best_mean = max((v for v in means if not np.isnan(v)), default=float("nan"))
@@ -156,9 +162,9 @@ for env in ENVS:
         else:
             row_text.append(f"{mean:.3f}\n±{std:.3f}")
             if mean == best_mean:
-                row_colors.append("#c6efce")   # green highlight for best
+                row_colors.append("#c6efce")  # green highlight for best
             elif mean < 0.1:
-                row_colors.append("#ffc7ce")   # red for failed
+                row_colors.append("#ffc7ce")  # red for failed
             else:
                 row_colors.append("#ffffff")
     cell_text.append(row_text)
@@ -185,7 +191,9 @@ tbl.scale(1.2, 2.2)
 
 ax.set_title(
     f"Mean Reward ± Std over {NUM_EPISODES} episodes — best model per (env, type)",
-    fontsize=11, fontweight="bold", pad=12,
+    fontsize=11,
+    fontweight="bold",
+    pad=12,
 )
 
 plt.tight_layout()

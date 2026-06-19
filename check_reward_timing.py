@@ -33,17 +33,17 @@ ENVS = [
 ]
 
 ENV_SHORT = {
-    "GoNogo-v0":                                "GoNogo",
-    "ContextDecisionMaking-v0":                 "ContextDM",
-    "DelayComparison-v0":                       "DelayComp",
-    "DelayMatchSample-v0":                      "DMS",
-    "DelayMatchSampleDistractor1D-v0":          "DMSD1D",
-    "DelayPairedAssociation-v0":                "DelayPairedAssoc",
-    "IntervalDiscrimination-v0":                "IntervalDisc",
-    "MultiSensoryIntegration-v0":              "MultiSensory",
-    "PerceptualDecisionMaking-v0":              "PDM",
+    "GoNogo-v0": "GoNogo",
+    "ContextDecisionMaking-v0": "ContextDM",
+    "DelayComparison-v0": "DelayComp",
+    "DelayMatchSample-v0": "DMS",
+    "DelayMatchSampleDistractor1D-v0": "DMSD1D",
+    "DelayPairedAssociation-v0": "DelayPairedAssoc",
+    "IntervalDiscrimination-v0": "IntervalDisc",
+    "MultiSensoryIntegration-v0": "MultiSensory",
+    "PerceptualDecisionMaking-v0": "PDM",
     "PerceptualDecisionMakingDelayResponse-v0": "PDM-DelayResp",
-    "ProbabilisticReasoning-v0":                "ProbReasoning",
+    "ProbabilisticReasoning-v0": "ProbReasoning",
 }
 
 
@@ -102,7 +102,7 @@ def reward_bar(rewards, width=40):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--n-trials", type=int, default=6)
-    parser.add_argument("--seed",     type=int, default=42)
+    parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
     for env_name in ENVS:
@@ -122,8 +122,8 @@ def main():
             continue
 
         # Summary stats
-        lengths   = [len(t) for t in trials]
-        any_rew   = [any(r != 0 for r in t) for t in trials]
+        lengths = [len(t) for t in trials]
+        any_rew = [any(r != 0 for r in t) for t in trials]
         rew_steps = []
         for t in trials:
             for i, r in enumerate(t):
@@ -136,21 +136,29 @@ def main():
             if nonzero:
                 last_rew_frac.append(nonzero[-1] / (len(t) - 1))
 
-        print(f"  Avg trial length : {np.mean(lengths):.1f} steps  "
-              f"(min {min(lengths)}, max {max(lengths)})")
+        print(
+            f"  Avg trial length : {np.mean(lengths):.1f} steps  "
+            f"(min {min(lengths)}, max {max(lengths)})"
+        )
         print(f"  Trials with reward: {sum(any_rew)}/{len(trials)}")
         if last_rew_frac:
-            print(f"  Last reward at   : {np.mean(last_rew_frac)*100:.0f}% through trial "
-                  f"(1.0 = final step)")
+            print(
+                f"  Last reward at   : {np.mean(last_rew_frac)*100:.0f}% through trial "
+                f"(1.0 = final step)"
+            )
         print()
 
         # Per-trial display
         # Header
-        print(f"  {'Trial':<6} {'Len':>4}  {'Reward steps':<28}  {'Bar (. = 0, + = pos, - = neg)'}")
+        print(
+            f"  {'Trial':<6} {'Len':>4}  {'Reward steps':<28}  {'Bar (. = 0, + = pos, - = neg)'}"
+        )
         print(f"  {'-'*6} {'-'*4}  {'-'*28}  {'-'*40}")
         for idx, trial in enumerate(trials):
             nonzero = [(i, trial[i]) for i in range(len(trial)) if trial[i] != 0]
-            rew_str = "  ".join(f"t={i}({r:+.1f})" for i, r in nonzero) if nonzero else "none"
+            rew_str = (
+                "  ".join(f"t={i}({r:+.1f})" for i, r in nonzero) if nonzero else "none"
+            )
             bar = reward_bar(trial)
             print(f"  {idx:<6} {len(trial):>4}  {rew_str:<28}  {bar}")
 

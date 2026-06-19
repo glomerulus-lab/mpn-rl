@@ -24,10 +24,12 @@ import torch
 import torch.nn.functional as F
 
 # Experience tuple for replay buffer
-Experience = namedtuple('Experience', ['obs', 'action', 'reward', 'next_obs', 'done', 'state', 'next_state'])
+Experience = namedtuple(
+    "Experience", ["obs", "action", "reward", "next_obs", "done", "state", "next_state"]
+)
 
 # Trial tuple for trial-based replay buffer
-Trial = namedtuple('Trial', ['obs_list', 'action_list', 'reward_list', 'done_list'])
+Trial = namedtuple("Trial", ["obs_list", "action_list", "reward_list", "done_list"])
 
 
 class ReplayBuffer:
@@ -99,7 +101,7 @@ class TrialReplayBuffer:
             obs_list=obs_tensor,
             action_list=action_tensor,
             reward_list=reward_tensor,
-            done_list=done_tensor
+            done_list=done_tensor,
         )
         self.buffer.append(trial)
 
@@ -164,22 +166,24 @@ class SequenceReplayBuffer:
         # Create zero transition template if not exists
         if self._zero_transition_template is None:
             self._zero_transition_template = {
-                'obs': torch.zeros_like(obs),
-                'action': 0,
-                'reward': 0.0,
-                'next_obs': torch.zeros_like(obs),
-                'done': False,
-                'episode_id': -1
+                "obs": torch.zeros_like(obs),
+                "action": 0,
+                "reward": 0.0,
+                "next_obs": torch.zeros_like(obs),
+                "done": False,
+                "episode_id": -1,
             }
 
-        self.buffer.append({
-            'obs': obs,
-            'action': action,
-            'reward': reward,
-            'next_obs': next_obs,
-            'done': done,
-            'episode_id': episode_id
-        })
+        self.buffer.append(
+            {
+                "obs": obs,
+                "action": action,
+                "reward": reward,
+                "next_obs": next_obs,
+                "done": done,
+                "episode_id": episode_id,
+            }
+        )
 
     def sample(self, batch_size):
         """
@@ -205,7 +209,7 @@ class SequenceReplayBuffer:
             end_idx = random.randint(self.sequence_length - 1, len(self.buffer) - 1)
 
             # Get the episode ID at the end position
-            current_episode = self.buffer[end_idx]['episode_id']
+            current_episode = self.buffer[end_idx]["episode_id"]
 
             # Build sequence by looking back L steps
             sequence = []
@@ -214,7 +218,7 @@ class SequenceReplayBuffer:
                 transition = self.buffer[idx]
 
                 # Zero out if from different episode (CRITICAL for DRQN)
-                if transition['episode_id'] != current_episode:
+                if transition["episode_id"] != current_episode:
                     sequence.append(self._get_zero_transition())
                 else:
                     sequence.append(transition)
@@ -226,12 +230,12 @@ class SequenceReplayBuffer:
     def _get_zero_transition(self):
         """Return a zero-padded transition for episode boundaries."""
         return {
-            'obs': self._zero_transition_template['obs'].clone(),
-            'action': 0,
-            'reward': 0.0,
-            'next_obs': self._zero_transition_template['next_obs'].clone(),
-            'done': False,
-            'episode_id': -1
+            "obs": self._zero_transition_template["obs"].clone(),
+            "action": 0,
+            "reward": 0.0,
+            "next_obs": self._zero_transition_template["next_obs"].clone(),
+            "done": False,
+            "episode_id": -1,
         }
 
     def __len__(self):
@@ -278,7 +282,7 @@ def compute_td_loss(dqn, target_dqn, batch, gamma=0.99):
     return loss
 
 
-def compute_td_loss_sequences(dqn, target_dqn, sequences, gamma=0.99, device='cpu'):
+def compute_td_loss_sequences(dqn, target_dqn, sequences, gamma=0.99, device="cpu"):
     """
     Compute TD loss over fixed-length sequences (parallel batch processing).
 
@@ -306,35 +310,56 @@ def compute_td_loss_sequences(dqn, target_dqn, sequences, gamma=0.99, device='cp
     seq_len = len(sequences[0])
 
     # Stack all sequences into batched tensors [batch_size, seq_len, ...]
-    obs_batch = torch.stack([
-        torch.stack([sequences[b][t]['obs'] for t in range(seq_len)])
-        for b in range(batch_size)
-    ]).to(device)  # [batch_size, seq_len, obs_dim]
+    obs_batch = torch.stack(
+        [
+            torch.stack([sequences[b][t]["obs"] for t in range(seq_len)])
+            for b in range(batch_size)
+        ]
+    ).to(
+        device
+    )  # [batch_size, seq_len, obs_dim]
 
-    next_obs_batch = torch.stack([
-        torch.stack([sequences[b][t]['next_obs'] for t in range(seq_len)])
-        for b in range(batch_size)
-    ]).to(device)  # [batch_size, seq_len, obs_dim]
+    next_obs_batch = torch.stack(
+        [
+            torch.stack([sequences[b][t]["next_obs"] for t in range(seq_len)])
+            for b in range(batch_size)
+        ]
+    ).to(
+        device
+    )  # [batch_size, seq_len, obs_dim]
 
-    actions_batch = torch.tensor([
-        [sequences[b][t]['action'] for t in range(seq_len)]
-        for b in range(batch_size)
-    ], dtype=torch.long, device=device)  # [batch_size, seq_len]
+    actions_batch = torch.tensor(
+        [
+            [sequences[b][t]["action"] for t in range(seq_len)]
+            for b in range(batch_size)
+        ],
+        dtype=torch.long,
+        device=device,
+    )  # [batch_size, seq_len]
 
-    rewards_batch = torch.tensor([
-        [sequences[b][t]['reward'] for t in range(seq_len)]
-        for b in range(batch_size)
-    ], dtype=torch.float32, device=device)  # [batch_size, seq_len]
+    rewards_batch = torch.tensor(
+        [
+            [sequences[b][t]["reward"] for t in range(seq_len)]
+            for b in range(batch_size)
+        ],
+        dtype=torch.float32,
+        device=device,
+    )  # [batch_size, seq_len]
 
-    dones_batch = torch.tensor([
-        [sequences[b][t]['done'] for t in range(seq_len)]
-        for b in range(batch_size)
-    ], dtype=torch.float32, device=device)  # [batch_size, seq_len]
+    dones_batch = torch.tensor(
+        [[sequences[b][t]["done"] for t in range(seq_len)] for b in range(batch_size)],
+        dtype=torch.float32,
+        device=device,
+    )  # [batch_size, seq_len]
 
-    episode_ids_batch = torch.tensor([
-        [sequences[b][t]['episode_id'] for t in range(seq_len)]
-        for b in range(batch_size)
-    ], dtype=torch.long, device=device)  # [batch_size, seq_len]
+    episode_ids_batch = torch.tensor(
+        [
+            [sequences[b][t]["episode_id"] for t in range(seq_len)]
+            for b in range(batch_size)
+        ],
+        dtype=torch.long,
+        device=device,
+    )  # [batch_size, seq_len]
 
     # Initialize states for all sequences in batch
     state = dqn.init_state(batch_size=batch_size, device=device)
@@ -366,36 +391,51 @@ def compute_td_loss_sequences(dqn, target_dqn, sequences, gamma=0.99, device='cp
             continue
 
         # Current Q-values for actions taken
-        current_q = q_values_list[t].gather(1, actions_batch[:, t].unsqueeze(1)).squeeze(1)  # [batch_size]
+        current_q = (
+            q_values_list[t].gather(1, actions_batch[:, t].unsqueeze(1)).squeeze(1)
+        )  # [batch_size]
 
         # TD targets
         if t < seq_len - 1:
             # Not last timestep: use next Q-values
             with torch.no_grad():
                 # Double DQN: select action with online, evaluate with target
-                next_actions = q_values_list[t + 1].argmax(dim=1, keepdim=True)  # [batch_size, 1]
-                next_q = target_q_list[t + 1].gather(1, next_actions).squeeze(1)  # [batch_size]
+                next_actions = q_values_list[t + 1].argmax(
+                    dim=1, keepdim=True
+                )  # [batch_size, 1]
+                next_q = (
+                    target_q_list[t + 1].gather(1, next_actions).squeeze(1)
+                )  # [batch_size]
 
                 # TD target: r + γ * Q(s', a') * (1 - done)
-                target_q = rewards_batch[:, t] + gamma * next_q * (1 - dones_batch[:, t])
+                target_q = rewards_batch[:, t] + gamma * next_q * (
+                    1 - dones_batch[:, t]
+                )
         else:
             # Last timestep: just reward
             target_q = rewards_batch[:, t]
 
         # Apply mask and compute loss only for valid transitions
         if valid_mask.any():
-            loss = F.smooth_l1_loss(current_q[valid_mask], target_q[valid_mask], reduction='sum')
+            loss = F.smooth_l1_loss(
+                current_q[valid_mask], target_q[valid_mask], reduction="sum"
+            )
             total_loss += loss
             total_timesteps += valid_mask.sum().item()
 
     # Average loss
-    avg_loss = total_loss / total_timesteps if total_timesteps > 0 else torch.tensor(0.0, device=device)
+    avg_loss = (
+        total_loss / total_timesteps
+        if total_timesteps > 0
+        else torch.tensor(0.0, device=device)
+    )
 
     return avg_loss
 
 
-def compute_td_loss_trial(dqn, target_dqn, trial_batch, gamma=0.99, device='cpu',
-                          bptt_chunk_size=None):
+def compute_td_loss_trial(
+    dqn, target_dqn, trial_batch, gamma=0.99, device="cpu", bptt_chunk_size=None
+):
     """
     Compute TD loss for DQN over complete trial sequences with optional Truncated BPTT.
 
@@ -505,7 +545,11 @@ def compute_td_loss_trial(dqn, target_dqn, trial_batch, gamma=0.99, device='cpu'
             # Compute loss for this chunk
             chunk_loss = 0.0
             for i, t in enumerate(range(chunk_start, chunk_end)):
-                current_q = q_values_list[i].gather(1, actions[t].unsqueeze(0).unsqueeze(0)).squeeze()
+                current_q = (
+                    q_values_list[i]
+                    .gather(1, actions[t].unsqueeze(0).unsqueeze(0))
+                    .squeeze()
+                )
                 target_q = rewards[t] + gamma * next_q_values_target[i] * (1 - dones[t])
 
                 loss = F.smooth_l1_loss(current_q, target_q)
@@ -523,26 +567,96 @@ def compute_td_loss_trial(dqn, target_dqn, trial_batch, gamma=0.99, device='cpu'
                 state = current_state
 
     # Average loss over all timesteps in batch
-    avg_loss = total_loss / total_timesteps if total_timesteps > 0 else torch.tensor(0.0, device=device)
+    avg_loss = (
+        total_loss / total_timesteps
+        if total_timesteps > 0
+        else torch.tensor(0.0, device=device)
+    )
 
     return avg_loss
 
 
 # Word lists for random experiment names
 ADJECTIVES = [
-    'swift', 'brave', 'bright', 'calm', 'clever', 'bold', 'eager', 'fair',
-    'gentle', 'happy', 'keen', 'lively', 'merry', 'noble', 'polite', 'proud',
-    'quiet', 'rapid', 'sincere', 'tender', 'vivid', 'wise', 'zealous', 'agile',
-    'cosmic', 'digital', 'electric', 'frozen', 'golden', 'lunar', 'mystic',
-    'neural', 'quantum', 'radiant', 'silver', 'stellar', 'turbo', 'ultra'
+    "swift",
+    "brave",
+    "bright",
+    "calm",
+    "clever",
+    "bold",
+    "eager",
+    "fair",
+    "gentle",
+    "happy",
+    "keen",
+    "lively",
+    "merry",
+    "noble",
+    "polite",
+    "proud",
+    "quiet",
+    "rapid",
+    "sincere",
+    "tender",
+    "vivid",
+    "wise",
+    "zealous",
+    "agile",
+    "cosmic",
+    "digital",
+    "electric",
+    "frozen",
+    "golden",
+    "lunar",
+    "mystic",
+    "neural",
+    "quantum",
+    "radiant",
+    "silver",
+    "stellar",
+    "turbo",
+    "ultra",
 ]
 
 NOUNS = [
-    'tiger', 'eagle', 'falcon', 'dragon', 'phoenix', 'wolf', 'bear', 'lion',
-    'hawk', 'raven', 'shark', 'panther', 'cobra', 'viper', 'mantis', 'spider',
-    'scorpion', 'leopard', 'cheetah', 'jaguar', 'orca', 'dolphin', 'owl',
-    'condor', 'lynx', 'puma', 'fox', 'badger', 'otter', 'weasel', 'mink',
-    'neuron', 'synapse', 'cortex', 'network', 'circuit', 'matrix', 'tensor'
+    "tiger",
+    "eagle",
+    "falcon",
+    "dragon",
+    "phoenix",
+    "wolf",
+    "bear",
+    "lion",
+    "hawk",
+    "raven",
+    "shark",
+    "panther",
+    "cobra",
+    "viper",
+    "mantis",
+    "spider",
+    "scorpion",
+    "leopard",
+    "cheetah",
+    "jaguar",
+    "orca",
+    "dolphin",
+    "owl",
+    "condor",
+    "lynx",
+    "puma",
+    "fox",
+    "badger",
+    "otter",
+    "weasel",
+    "mink",
+    "neuron",
+    "synapse",
+    "cortex",
+    "network",
+    "circuit",
+    "matrix",
+    "tensor",
 ]
 
 
@@ -569,8 +683,8 @@ def _get_db() -> sqlite3.Connection:
     EXPERIMENTS_DB.parent.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(str(EXPERIMENTS_DB), timeout=60)
     con.execute("PRAGMA journal_mode=WAL")
-    con.execute("PRAGMA busy_timeout=60000")   # 60 s auto-retry on lock
-    con.execute("PRAGMA synchronous=NORMAL")   # safe + faster than FULL
+    con.execute("PRAGMA busy_timeout=60000")  # 60 s auto-retry on lock
+    con.execute("PRAGMA synchronous=NORMAL")  # safe + faster than FULL
     con.execute("""
         CREATE TABLE IF NOT EXISTS experiments (
             experiment_name TEXT PRIMARY KEY,
@@ -628,7 +742,9 @@ class ExperimentManager:
             └── training_curves.png
     """
 
-    def __init__(self, experiment_name: Optional[str] = None, base_dir: str = "experiments"):
+    def __init__(
+        self, experiment_name: Optional[str] = None, base_dir: str = "experiments"
+    ):
         """
         Args:
             experiment_name: Name of experiment (generates random if None)
@@ -656,16 +772,21 @@ class ExperimentManager:
         """Save experiment configuration."""
         created_at = datetime.now().isoformat()
         config = {**config, "schema_version": SCHEMA_VERSION, "created_at": created_at}
-        with open(self.config_path, 'w') as f:
+        with open(self.config_path, "w") as f:
             json.dump(config, f, indent=2)
+
         def _write():
             con = _get_db()
-            con.execute("""
+            con.execute(
+                """
                 INSERT OR REPLACE INTO experiments (experiment_name, schema_version, created_at, config)
                 VALUES (?, ?, ?, ?)
-            """, (self.experiment_name, SCHEMA_VERSION, created_at, json.dumps(config)))
+            """,
+                (self.experiment_name, SCHEMA_VERSION, created_at, json.dumps(config)),
+            )
             con.commit()
             con.close()
+
         _try_db_write(_write)
         print(f"Saved config to {self.config_path}")
 
@@ -673,7 +794,7 @@ class ExperimentManager:
         """Load experiment configuration."""
         if not self.config_path.exists():
             raise FileNotFoundError(f"Config not found: {self.config_path}")
-        with open(self.config_path, 'r') as f:
+        with open(self.config_path, "r") as f:
             return json.load(f)
 
     def save_model(
@@ -681,7 +802,7 @@ class ExperimentManager:
         model,
         optimizer: Optional[torch.optim.Optimizer] = None,
         checkpoint_name: str = "model.pt",
-        metadata: Optional[Dict] = None
+        metadata: Optional[Dict] = None,
     ):
         """
         Save model checkpoint.
@@ -695,12 +816,12 @@ class ExperimentManager:
         checkpoint_path = self.checkpoint_dir / checkpoint_name
 
         checkpoint = {
-            'model_state_dict': model.state_dict(),
-            'metadata': metadata or {}
+            "model_state_dict": model.state_dict(),
+            "metadata": metadata or {},
         }
 
         if optimizer is not None:
-            checkpoint['optimizer_state_dict'] = optimizer.state_dict()
+            checkpoint["optimizer_state_dict"] = optimizer.state_dict()
 
         torch.save(checkpoint, checkpoint_path)
         print(f"Saved checkpoint to {checkpoint_path}")
@@ -710,7 +831,7 @@ class ExperimentManager:
         model,
         checkpoint_name: str = "best_model.pt",
         optimizer: Optional[torch.optim.Optimizer] = None,
-        device: str = 'cpu'
+        device: str = "cpu",
     ) -> Dict:
         """
         Load model checkpoint.
@@ -729,53 +850,90 @@ class ExperimentManager:
         if not checkpoint_path.exists():
             raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
 
-        checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
-        model.load_state_dict(checkpoint['model_state_dict'])
+        checkpoint = torch.load(
+            checkpoint_path, map_location=device, weights_only=False
+        )
+        model.load_state_dict(checkpoint["model_state_dict"])
 
-        if optimizer is not None and 'optimizer_state_dict' in checkpoint:
-            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        if optimizer is not None and "optimizer_state_dict" in checkpoint:
+            optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 
         print(f"Loaded checkpoint from {checkpoint_path}")
-        return checkpoint.get('metadata', {})
+        return checkpoint.get("metadata", {})
 
-    def append_training_history(self, frames: int, reward: float,
-                                length: int, loss: float, epsilon: float,
-                                oracle_reward: float = None, pct_oracle: float = None,
-                                episode: int = None):
+    def append_training_history(
+        self,
+        frames: int,
+        reward: float,
+        length: int,
+        loss: float,
+        epsilon: float,
+        oracle_reward: float = None,
+        pct_oracle: float = None,
+        episode: int = None,
+    ):
         """Append a single eval step to metrics.jsonl and the DB."""
-        with open(self.metrics_path, 'a') as f:
-            f.write(json.dumps({
-                'experiment_name': self.experiment_name,
-                'frame': int(frames),
-                'episode': int(episode) if episode is not None else None,
-                'reward': float(reward),
-                'length': int(length), 'loss': float(loss), 'epsilon': float(epsilon),
-                'oracle_reward': float(oracle_reward) if oracle_reward is not None else None,
-                'pct_oracle': float(pct_oracle) if pct_oracle is not None else None,
-            }) + '\n')
+        with open(self.metrics_path, "a") as f:
+            f.write(
+                json.dumps(
+                    {
+                        "experiment_name": self.experiment_name,
+                        "frame": int(frames),
+                        "episode": int(episode) if episode is not None else None,
+                        "reward": float(reward),
+                        "length": int(length),
+                        "loss": float(loss),
+                        "epsilon": float(epsilon),
+                        "oracle_reward": (
+                            float(oracle_reward) if oracle_reward is not None else None
+                        ),
+                        "pct_oracle": (
+                            float(pct_oracle) if pct_oracle is not None else None
+                        ),
+                    }
+                )
+                + "\n"
+            )
+
         def _write():
             con = _get_db()
-            con.execute("""
+            con.execute(
+                """
                 INSERT OR REPLACE INTO training_history
                     (experiment_name, schema_version, frame, episode, reward, length, loss, epsilon,
                      oracle_reward, pct_oracle)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (self.experiment_name, SCHEMA_VERSION, frames, episode, reward, length, loss,
-                  epsilon, oracle_reward, pct_oracle))
+            """,
+                (
+                    self.experiment_name,
+                    SCHEMA_VERSION,
+                    frames,
+                    episode,
+                    reward,
+                    length,
+                    loss,
+                    epsilon,
+                    oracle_reward,
+                    pct_oracle,
+                ),
+            )
             con.commit()
             con.close()
+
         _try_db_write(_write)
 
     def mark_completed(self):
         """Mark this experiment as completed in the DB."""
+
         def _write():
             con = _get_db()
             con.execute(
                 "UPDATE experiments SET completed = 1 WHERE experiment_name = ?",
-                (self.experiment_name,)
+                (self.experiment_name,),
             )
             con.commit()
             con.close()
+
         _try_db_write(_write)
 
     def get_best_checkpoint(self) -> Optional[str]:
@@ -789,7 +947,7 @@ class ExperimentManager:
         if not checkpoints:
             return None
         # Sort by episode number
-        checkpoints.sort(key=lambda p: int(p.stem.split('_')[1]))
+        checkpoints.sort(key=lambda p: int(p.stem.split("_")[1]))
         return str(checkpoints[-1])
 
     def cleanup_checkpoints(self, max_checkpoints: int = 4):
@@ -803,7 +961,7 @@ class ExperimentManager:
         checkpoints = list(self.checkpoint_dir.glob("checkpoint_*.pt"))
         if len(checkpoints) <= max_checkpoints:
             return
-        checkpoints.sort(key=lambda p: int(p.stem.split('_')[1]))
+        checkpoints.sort(key=lambda p: int(p.stem.split("_")[1]))
         for old_ckpt in checkpoints[:-max_checkpoints]:
             old_ckpt.unlink()
             print(f"Removed old checkpoint: {old_ckpt.name}")
@@ -819,7 +977,7 @@ def save_checkpoint(
     episode: int,
     avg_reward: float,
     is_best: bool = False,
-    is_final: bool = False
+    is_final: bool = False,
 ):
     """
     Convenience function to save a checkpoint.
@@ -834,9 +992,9 @@ def save_checkpoint(
         is_final: Whether this is the final checkpoint
     """
     metadata = {
-        'episode': episode,
-        'avg_reward': avg_reward,
-        'timestamp': datetime.now().isoformat()
+        "episode": episode,
+        "avg_reward": avg_reward,
+        "timestamp": datetime.now().isoformat(),
     }
 
     # Save periodic checkpoint
@@ -857,7 +1015,7 @@ def load_checkpoint_for_eval(
     experiment_manager: ExperimentManager,
     model,
     checkpoint_name: str = "best_model.pt",
-    device: str = 'cpu'
+    device: str = "cpu",
 ) -> Dict:
     """
     Load checkpoint for evaluation (no optimizer).
@@ -871,14 +1029,13 @@ def load_checkpoint_for_eval(
     Returns:
         metadata: Checkpoint metadata
     """
-    return experiment_manager.load_model(model, checkpoint_name, optimizer=None, device=device)
+    return experiment_manager.load_model(
+        model, checkpoint_name, optimizer=None, device=device
+    )
 
 
 def load_checkpoint_for_resume(
-    experiment_manager: ExperimentManager,
-    model,
-    optimizer,
-    device: str = 'cpu'
+    experiment_manager: ExperimentManager, model, optimizer, device: str = "cpu"
 ) -> Dict:
     """
     Load latest checkpoint to resume training.
@@ -928,11 +1085,11 @@ if __name__ == "__main__":
     # Test config save/load
     print("\nTesting config save/load...")
     config = {
-        'env_name': 'CartPole-v1',
-        'hidden_dim': 64,
-        'eta': 0.05,
-        'lambda_decay': 0.9,
-        'num_episodes': 500
+        "env_name": "CartPole-v1",
+        "hidden_dim": 64,
+        "eta": 0.05,
+        "lambda_decay": 0.9,
+        "num_episodes": 500,
     }
     exp.save_config(config)
     loaded_config = exp.load_config()

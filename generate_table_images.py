@@ -65,9 +65,7 @@ def group_models_by_type(results):
         groups[mt].append((name, data))
     # Sort each group by mean reward descending
     for mt in groups:
-        groups[mt].sort(
-            key=lambda x: x[1]["cumulative_reward"]["mean"], reverse=True
-        )
+        groups[mt].sort(key=lambda x: x[1]["cumulative_reward"]["mean"], reverse=True)
     return groups
 
 
@@ -163,7 +161,9 @@ def generate_sweep_table(model_type, entries, env_name, random_mean, top_n=10):
 
     caption = f"Top {min(top_n, total_count)} {label} configurations on {env_name} (of {total_count} total). Random baseline mean: {random_mean:.2f}."
     if is_mpn and model_type == "mpn":
-        caption += " $\\eta$ and $\\lambda$ columns show plasticity-specific hyperparameters."
+        caption += (
+            " $\\eta$ and $\\lambda$ columns show plasticity-specific hyperparameters."
+        )
     elif is_mpn and model_type == "mpn-frozen":
         caption += " $\\eta$ and $\\lambda$ are fixed architectural parameters (plasticity frozen during training)."
 
@@ -185,9 +185,7 @@ def generate_single_table(results, env_name):
     lines.append("\\centering")
     lines.append("\\begin{tabular}{lcccc}")
     lines.append("\\toprule")
-    lines.append(
-        "Model & Params & Mean Reward & Std & \\% vs Random \\\\"
-    )
+    lines.append("Model & Params & Mean Reward & Std & \\% vs Random \\\\")
     lines.append("\\midrule")
 
     # Find best mean for bolding
@@ -212,9 +210,7 @@ def generate_single_table(results, env_name):
         if mean == best_mean:
             mean_str = f"\\textbf{{{mean_str}}}"
 
-        lines.append(
-            f"{label} & {params} & {mean_str} & {std:.2f} & {pct} \\\\"
-        )
+        lines.append(f"{label} & {params} & {mean_str} & {std:.2f} & {pct} \\\\")
 
     lines.append("\\midrule")
     # Random baseline row
@@ -259,7 +255,13 @@ def compile_latex(tex_path, output_dir):
 
     # Compile LaTeX
     result = subprocess.run(
-        ["pdflatex", "-interaction=nonstopmode", "-output-directory", str(output_dir), str(tex_path)],
+        [
+            "pdflatex",
+            "-interaction=nonstopmode",
+            "-output-directory",
+            str(output_dir),
+            str(tex_path),
+        ],
         capture_output=True,
         text=True,
     )
@@ -347,7 +349,9 @@ def process_environment(json_path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate table images from comparison results")
+    parser = argparse.ArgumentParser(
+        description="Generate table images from comparison results"
+    )
     parser.add_argument(
         "--env",
         type=str,

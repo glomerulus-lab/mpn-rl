@@ -80,7 +80,8 @@ def evaluate_oracle(
         Mean total reward per episode achieved by the perfect oracle.
     """
     import neurogym as ngym  # imported lazily so the module is importable
-                              # even without neurogym installed
+
+    # even without neurogym installed
 
     if env_factory is not None:
         env = env_factory()
@@ -128,7 +129,10 @@ def get_oracle_reward(
     a fresh environment is created from *env_name* with default rewards.
     """
     return evaluate_oracle(
-        env_name, n_episodes=n_episodes, max_steps=max_steps, seed=seed,
+        env_name,
+        n_episodes=n_episodes,
+        max_steps=max_steps,
+        seed=seed,
         env_factory=env_factory,
     )
 

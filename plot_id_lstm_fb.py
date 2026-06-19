@@ -20,9 +20,10 @@ ENV = "IntervalDiscrimination-v0"
 LAYERS = [1, 2, 3]
 
 CONDITIONS = {
-    "LSTM (standard)":    ("ng-sweep-v1",      "#1f77b4"),
+    "LSTM (standard)": ("ng-sweep-v1", "#1f77b4"),
     "LSTM (forget bias)": ("lstm-fb-sweep-v1", "#ff7f0e"),
 }
+
 
 def smooth(values, window=10):
     if window <= 1 or len(values) < window:
@@ -99,15 +100,23 @@ for col, nl in enumerate(LAYERS):
         if cell.empty:
             continue
         has_any = True
-        ep  = cell["episode"].values
+        ep = cell["episode"].values
         rew = cell["reward"].values
-        sm  = smooth(rew)
-        ep_sm = ep[len(ep) - len(sm):]
+        sm = smooth(rew)
+        ep_sm = ep[len(ep) - len(sm) :]
         ax.plot(ep_sm, sm, color=color, linewidth=2, label=label)
 
     if not has_any:
-        ax.text(0.5, 0.5, "no data yet", ha="center", va="center",
-                transform=ax.transAxes, fontsize=9, color="gray")
+        ax.text(
+            0.5,
+            0.5,
+            "no data yet",
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+            fontsize=9,
+            color="gray",
+        )
 
     ax.axhline(0, color="gray", linewidth=0.6, linestyle="--")
     ax.set_ylim(-0.15, 1.05)

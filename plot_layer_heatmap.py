@@ -20,9 +20,13 @@ import duckdb
 import matplotlib.pyplot as plt
 import numpy as np
 
-_tags_arg  = sys.argv[1] if len(sys.argv) > 1 else "ng-sweep-v1,ng-sweep-v2,ng-sweep-v3,ng-sweep-v4"
-TAGS       = [t.strip() for t in _tags_arg.split(",")]
-OUTPUT     = sys.argv[2] if len(sys.argv) > 2 else "layer_heatmap.png"
+_tags_arg = (
+    sys.argv[1]
+    if len(sys.argv) > 1
+    else "ng-sweep-v1,ng-sweep-v2,ng-sweep-v3,ng-sweep-v4"
+)
+TAGS = [t.strip() for t in _tags_arg.split(",")]
+OUTPUT = sys.argv[2] if len(sys.argv) > 2 else "layer_heatmap.png"
 MODEL_TYPE = sys.argv[3] if len(sys.argv) > 3 else "mpn"
 
 # ---------------------------------------------------------------------------
@@ -80,9 +84,11 @@ df = con.execute(f"""
 """).fetchdf()
 con.close()
 
-ENVS   = sorted(df["env_name"].unique())
+ENVS = sorted(df["env_name"].unique())
 LAYERS = sorted(df["num_layers"].dropna().unique().astype(int))
-DIMS   = sorted(df["hidden_dim"].dropna().unique().astype(int), reverse=True)  # large at top
+DIMS = sorted(
+    df["hidden_dim"].dropna().unique().astype(int), reverse=True
+)  # large at top
 
 # ---------------------------------------------------------------------------
 # Layout: grid of subplots, one per environment
@@ -94,9 +100,12 @@ n_rows_grid = math.ceil(len(ENVS) / n_cols_grid)
 cell_w = 2.2
 cell_h = 1.8
 fig, axes = plt.subplots(
-    n_rows_grid, n_cols_grid,
-    figsize=(cell_w * n_cols_grid * len(LAYERS) / 3 + 1,
-             cell_h * n_rows_grid * len(DIMS) / 3 + 1.5),
+    n_rows_grid,
+    n_cols_grid,
+    figsize=(
+        cell_w * n_cols_grid * len(LAYERS) / 3 + 1,
+        cell_h * n_rows_grid * len(DIMS) / 3 + 1.5,
+    ),
     squeeze=False,
 )
 
@@ -124,10 +133,20 @@ for idx, env in enumerate(ENVS):
             val = matrix[i, j]
             if not np.isnan(val):
                 text_color = "white" if val > 0.55 else "black"
-                ax.text(j, i, f"{val:.2f}", ha="center", va="center",
-                        fontsize=8, color=text_color, fontweight="bold")
+                ax.text(
+                    j,
+                    i,
+                    f"{val:.2f}",
+                    ha="center",
+                    va="center",
+                    fontsize=8,
+                    color=text_color,
+                    fontweight="bold",
+                )
             else:
-                ax.text(j, i, "—", ha="center", va="center", fontsize=8, color="#aaaaaa")
+                ax.text(
+                    j, i, "—", ha="center", va="center", fontsize=8, color="#aaaaaa"
+                )
 
     env_label = env.replace("-v0", "")
     # wrap long names so they don't overlap neighbouring subplots

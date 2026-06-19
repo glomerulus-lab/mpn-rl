@@ -17,9 +17,9 @@ import numpy as np
 import pandas as pd
 
 _tags_arg = sys.argv[1] if len(sys.argv) > 1 else "ng-sweep-v1"
-TAGS      = [t.strip() for t in _tags_arg.split(",")]
-TAG       = _tags_arg
-OUTPUT    = sys.argv[2] if len(sys.argv) > 2 else "custom_sweep_curves.png"
+TAGS = [t.strip() for t in _tags_arg.split(",")]
+TAG = _tags_arg
+OUTPUT = sys.argv[2] if len(sys.argv) > 2 else "custom_sweep_curves.png"
 
 # ---------------------------------------------------------------------------
 # Style
@@ -28,11 +28,12 @@ OUTPUT    = sys.argv[2] if len(sys.argv) > 2 else "custom_sweep_curves.png"
 MODEL_TYPES = ["mpn-frozen", "lstm", "mpn", "rnn"]
 
 MODEL_BASE_COLORS = {
-    "lstm":       "#1f77b4",
-    "mpn":        "#2ca02c",
+    "lstm": "#1f77b4",
+    "mpn": "#2ca02c",
     "mpn-frozen": "#d62728",
-    "rnn":        "#ff7f0e",
+    "rnn": "#ff7f0e",
 }
+
 
 def smooth(values: np.ndarray, window: int) -> np.ndarray:
     return pd.Series(values).rolling(window, min_periods=1).mean().values
@@ -109,7 +110,7 @@ if df.empty:
     print(f"No data found for tag='{TAG}'.")
     sys.exit(1)
 
-envs   = sorted(df["env_name"].unique())
+envs = sorted(df["env_name"].unique())
 n_rows = len(envs)
 n_cols = len(MODEL_TYPES)
 
@@ -118,7 +119,8 @@ n_cols = len(MODEL_TYPES)
 # ---------------------------------------------------------------------------
 
 fig, axes = plt.subplots(
-    n_rows, n_cols,
+    n_rows,
+    n_cols,
     figsize=(4.5 * n_cols, 3.5 * n_rows),
     squeeze=False,
     sharey="row",
@@ -137,8 +139,16 @@ for row, env in enumerate(envs):
         cell = df[(df["env_name"] == env) & (df["model_type"] == mt)]
 
         if cell.empty:
-            ax.text(0.5, 0.5, "no data", ha="center", va="center",
-                    transform=ax.transAxes, fontsize=9, color="gray")
+            ax.text(
+                0.5,
+                0.5,
+                "no data",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+                fontsize=9,
+                color="gray",
+            )
             ax.set_ylim(-0.15, 1.05)
             ax.grid(True, alpha=0.2)
             continue
@@ -157,18 +167,30 @@ for row, env in enumerate(envs):
         else:
             max_ep = max(c[0][-1] for c in tag_curves)
             common_ep = np.linspace(0, max_ep, 500)
-            stack = np.array([
-                np.interp(common_ep, ep, sm, left=np.nan, right=np.nan)
-                for ep, sm in tag_curves
-            ])
+            stack = np.array(
+                [
+                    np.interp(common_ep, ep, sm, left=np.nan, right=np.nan)
+                    for ep, sm in tag_curves
+                ]
+            )
             mean_curve = np.nanmean(stack, axis=0)
-            std_curve  = np.nanstd(stack,  axis=0)
+            std_curve = np.nanstd(stack, axis=0)
             valid = ~np.isnan(mean_curve)
-            ax.plot(common_ep[valid], mean_curve[valid], color=color, linewidth=1.8, zorder=3)
-            ax.fill_between(common_ep[valid],
-                            (mean_curve - std_curve)[valid],
-                            (mean_curve + std_curve)[valid],
-                            color=color, alpha=0.2, zorder=2)
+            ax.plot(
+                common_ep[valid],
+                mean_curve[valid],
+                color=color,
+                linewidth=1.8,
+                zorder=3,
+            )
+            ax.fill_between(
+                common_ep[valid],
+                (mean_curve - std_curve)[valid],
+                (mean_curve + std_curve)[valid],
+                color=color,
+                alpha=0.2,
+                zorder=2,
+            )
 
         ax.axhline(0, color="gray", linewidth=0.6, linestyle="--")
         ax.set_ylim(-0.15, 1.05)

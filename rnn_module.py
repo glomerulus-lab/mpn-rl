@@ -59,7 +59,7 @@ class RNNModule(ModuleBase):
         input_size: int = None,
         hidden_size: int = None,
         num_layers: int = 1,
-        nonlinearity: str = 'tanh',
+        nonlinearity: str = "tanh",
         bias: bool = True,
         batch_first=True,
         dropout=0,
@@ -161,6 +161,7 @@ class RNNModule(ModuleBase):
     @property
     def recurrent_mode(self):
         from torchrl.modules.tensordict_module.rnn import recurrent_mode
+
         rm = recurrent_mode()
         if rm is None:
             return bool(self._recurrent_mode)

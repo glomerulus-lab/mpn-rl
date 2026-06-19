@@ -37,6 +37,7 @@ from model_utils import EXPERIMENTS_DB, SCHEMA_VERSION, _get_db
 # Live DuckDB connection (reads files directly, always up-to-date)
 # ---------------------------------------------------------------------------
 
+
 def _live_con() -> duckdb.DuckDBPyConnection:
     """Return an in-memory DuckDB with views over live experiment files.
 
@@ -46,7 +47,7 @@ def _live_con() -> duckdb.DuckDBPyConnection:
     con = duckdb.connect()
 
     metrics_files = list(Path("experiments").glob("*/metrics.jsonl"))
-    config_files  = list(Path("experiments").glob("*/config.json"))
+    config_files = list(Path("experiments").glob("*/config.json"))
 
     if metrics_files:
         con.execute("""
@@ -105,6 +106,7 @@ def _query(sql: str) -> pd.DataFrame:
 # Backfill into SQLite (optional — for archival / fast historical queries)
 # ---------------------------------------------------------------------------
 
+
 def backfill(base_dir: str = "experiments"):
     """Import all existing JSON experiments into the SQLite DB."""
     con = _get_db()
@@ -112,7 +114,7 @@ def backfill(base_dir: str = "experiments"):
     imported = 0
 
     for exp_dir in sorted(exp_dirs):
-        config_path  = exp_dir / "config.json"
+        config_path = exp_dir / "config.json"
         if not config_path.exists():
             continue
 
@@ -120,31 +122,52 @@ def backfill(base_dir: str = "experiments"):
             config = json.load(f)
 
         experiment_name = config.get("experiment_name", exp_dir.name)
-        schema_version  = config.get("schema_version", 0)
-        created_at      = config.get("created_at",
-                          datetime.fromtimestamp(config_path.stat().st_mtime).isoformat())
+        schema_version = config.get("schema_version", 0)
+        created_at = config.get(
+            "created_at",
+            datetime.fromtimestamp(config_path.stat().st_mtime).isoformat(),
+        )
         completed = int((exp_dir / "checkpoints" / "final_model.pt").exists())
 
-        con.execute("""
+        con.execute(
+            """
             INSERT OR REPLACE INTO experiments
                 (experiment_name, schema_version, created_at, completed, config)
             VALUES (?, ?, ?, ?, ?)
-        """, (experiment_name, schema_version, created_at, completed, json.dumps(config)))
+        """,
+            (
+                experiment_name,
+                schema_version,
+                created_at,
+                completed,
+                json.dumps(config),
+            ),
+        )
 
         metrics_path = exp_dir / "metrics.jsonl"
         if metrics_path.exists():
             with open(metrics_path) as f:
                 for line in f:
                     row = json.loads(line)
-                    con.execute("""
+                    con.execute(
+                        """
                         INSERT OR REPLACE INTO training_history
                             (experiment_name, schema_version, frame, reward, length, loss, epsilon,
                              oracle_reward, pct_oracle)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (experiment_name, schema_version,
-                          row.get("frame"), row.get("reward"), row.get("length"),
-                          row.get("loss"), row.get("epsilon"),
-                          row.get("oracle_reward"), row.get("pct_oracle")))
+                    """,
+                        (
+                            experiment_name,
+                            schema_version,
+                            row.get("frame"),
+                            row.get("reward"),
+                            row.get("length"),
+                            row.get("loss"),
+                            row.get("epsilon"),
+                            row.get("oracle_reward"),
+                            row.get("pct_oracle"),
+                        ),
+                    )
 
         imported += 1
         print(f"  imported: {experiment_name}")
@@ -158,6 +181,7 @@ def backfill(base_dir: str = "experiments"):
 # Migrate from old DuckDB
 # ---------------------------------------------------------------------------
 
+
 def migrate_from_duckdb():
     """One-time migration from the old experiments.duckdb to experiments.sqlite."""
     old_db = Path("experiments/experiments.duckdb")
@@ -167,27 +191,33 @@ def migrate_from_duckdb():
 
     print(f"Migrating from {old_db} ...")
     duck = duckdb.connect(str(old_db), read_only=True)
-    con  = _get_db()
+    con = _get_db()
 
     rows = duck.execute("""
         SELECT experiment_name, schema_version, created_at, completed, config
         FROM experiments
     """).fetchall()
     for row in rows:
-        con.execute("""
+        con.execute(
+            """
             INSERT OR REPLACE INTO experiments
                 (experiment_name, schema_version, created_at, completed, config)
             VALUES (?, ?, ?, ?, ?)
-        """, (row[0], row[1], str(row[2]), int(row[3] or 0), row[4]))
+        """,
+            (row[0], row[1], str(row[2]), int(row[3] or 0), row[4]),
+        )
     print(f"  migrated {len(rows)} experiments")
 
     rows = duck.execute("SELECT * FROM training_history").fetchall()
     for row in rows:
-        con.execute("""
+        con.execute(
+            """
             INSERT OR REPLACE INTO training_history
                 (experiment_name, schema_version, frame, reward, length, loss, epsilon)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, row)
+        """,
+            row,
+        )
     print(f"  migrated {len(rows)} history rows")
 
     con.commit()
@@ -199,6 +229,7 @@ def migrate_from_duckdb():
 # ---------------------------------------------------------------------------
 # Query commands (all use live DuckDB file scanning)
 # ---------------------------------------------------------------------------
+
 
 def cmd_list(args):
     df = _query("""
@@ -285,22 +316,32 @@ def cmd_today(args):
         if not created_at.startswith(today):
             continue
 
-        exp_name   = config.get("experiment_name", config_path.parent.name)
-        algorithm  = config.get("algorithm", "dqn")
+        exp_name = config.get("experiment_name", config_path.parent.name)
+        algorithm = config.get("algorithm", "dqn")
         model_type = config.get("model_type", "?")
-        utd        = config.get("utd", "?")
-        lr         = config.get("learning_rate", "?")
+        utd = config.get("utd", "?")
+        lr = config.get("learning_rate", "?")
         hidden_dim = config.get("hidden_dim", "?")
         num_layers = config.get("num_layers", "?")
 
         metrics_path = config_path.parent / "metrics.jsonl"
         if not metrics_path.exists():
-            rows.append(dict(experiment_name=exp_name, algorithm=algorithm,
-                             model_type=model_type, utd=utd,
-                             lr=lr, hidden_dim=hidden_dim, num_layers=num_layers,
-                             latest_frame=None, last3_avg_reward=None,
-                             last10_avg_reward=None, total_avg_reward=None,
-                             best_reward=None))
+            rows.append(
+                dict(
+                    experiment_name=exp_name,
+                    algorithm=algorithm,
+                    model_type=model_type,
+                    utd=utd,
+                    lr=lr,
+                    hidden_dim=hidden_dim,
+                    num_layers=num_layers,
+                    latest_frame=None,
+                    last3_avg_reward=None,
+                    last10_avg_reward=None,
+                    total_avg_reward=None,
+                    best_reward=None,
+                )
+            )
             continue
 
         rewards, frames = [], []
@@ -317,30 +358,42 @@ def cmd_today(args):
                     continue
 
         if not rewards:
-            rows.append(dict(experiment_name=exp_name, algorithm=algorithm,
-                             model_type=model_type, utd=utd,
-                             lr=lr, hidden_dim=hidden_dim, num_layers=num_layers,
-                             latest_frame=None, last3_avg_reward=None,
-                             last10_avg_reward=None, total_avg_reward=None,
-                             best_reward=None))
+            rows.append(
+                dict(
+                    experiment_name=exp_name,
+                    algorithm=algorithm,
+                    model_type=model_type,
+                    utd=utd,
+                    lr=lr,
+                    hidden_dim=hidden_dim,
+                    num_layers=num_layers,
+                    latest_frame=None,
+                    last3_avg_reward=None,
+                    last10_avg_reward=None,
+                    total_avg_reward=None,
+                    best_reward=None,
+                )
+            )
             continue
 
-        last3  = rewards[-3:]
+        last3 = rewards[-3:]
         last10 = rewards[-10:]
-        rows.append(dict(
-            experiment_name   = exp_name,
-            algorithm         = algorithm,
-            model_type        = model_type,
-            utd               = utd,
-            lr                = lr,
-            hidden_dim        = hidden_dim,
-            num_layers        = num_layers,
-            latest_frame      = frames[-1],
-            last3_avg_reward  = round(sum(last3)  / len(last3),  4),
-            last10_avg_reward = round(sum(last10) / len(last10), 4),
-            total_avg_reward  = round(sum(rewards) / len(rewards), 4),
-            best_reward       = round(max(rewards), 4),
-        ))
+        rows.append(
+            dict(
+                experiment_name=exp_name,
+                algorithm=algorithm,
+                model_type=model_type,
+                utd=utd,
+                lr=lr,
+                hidden_dim=hidden_dim,
+                num_layers=num_layers,
+                latest_frame=frames[-1],
+                last3_avg_reward=round(sum(last3) / len(last3), 4),
+                last10_avg_reward=round(sum(last10) / len(last10), 4),
+                total_avg_reward=round(sum(rewards) / len(rewards), 4),
+                best_reward=round(max(rewards), 4),
+            )
+        )
 
     if not rows:
         print(f"No experiments found for today ({today}).")
@@ -360,23 +413,34 @@ def cmd_sql(args):
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Query MPN-RL experiments (live file scanning)")
+    parser = argparse.ArgumentParser(
+        description="Query MPN-RL experiments (live file scanning)"
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("backfill", help="Rebuild SQLite index from JSON files")
-    sub.add_parser("migrate",  help="One-time migration from old experiments.duckdb")
-    sub.add_parser("list",     help="List all experiments with latest frame and best reward")
+    sub.add_parser("migrate", help="One-time migration from old experiments.duckdb")
+    sub.add_parser(
+        "list", help="List all experiments with latest frame and best reward"
+    )
 
     p_best = sub.add_parser("best", help="Best reward per experiment")
-    p_best.add_argument("--env",       default=None)
-    p_best.add_argument("--algorithm", default=None, help="Filter by algorithm: dqn or a2c")
-    p_best.add_argument("--limit",     type=int, default=20)
+    p_best.add_argument("--env", default=None)
+    p_best.add_argument(
+        "--algorithm", default=None, help="Filter by algorithm: dqn or a2c"
+    )
+    p_best.add_argument("--limit", type=int, default=20)
 
-    p_compare = sub.add_parser("compare", help="Aggregate stats grouped by model/hyperparams")
-    p_compare.add_argument("--env",        default=None)
+    p_compare = sub.add_parser(
+        "compare", help="Aggregate stats grouped by model/hyperparams"
+    )
+    p_compare.add_argument("--env", default=None)
     p_compare.add_argument("--model-type", default=None)
-    p_compare.add_argument("--algorithm",  default=None, help="Filter by algorithm: dqn or a2c")
+    p_compare.add_argument(
+        "--algorithm", default=None, help="Filter by algorithm: dqn or a2c"
+    )
 
     sub.add_parser("today", help="Today's experiments: last-10 and total avg reward")
 
