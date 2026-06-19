@@ -1,0 +1,7 @@
+#!/bin/bash
+
+status=0
+uv run black --check . || status=1
+uv run isort --check-only . || status=1
+uv run mypy . || status=1
+exit "${status}"
