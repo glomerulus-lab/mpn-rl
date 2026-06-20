@@ -105,7 +105,7 @@ def main():
     for (pol_name, cfg), offset in zip(POLICIES.items(), offsets):
         means = [np.mean(results[e][pol_name]) for e in ENVS]
         sems = [np.std(results[e][pol_name]) / np.sqrt(args.n_trials) for e in ENVS]
-        bars = ax.bar(
+        ax.bar(
             x + offset,
             means,
             bar_w,

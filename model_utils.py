@@ -11,9 +11,7 @@ Handles:
 """
 
 import json
-import os
 import random
-import time
 from collections import deque, namedtuple
 from datetime import datetime
 from pathlib import Path
@@ -314,18 +312,14 @@ def compute_td_loss_sequences(dqn, target_dqn, sequences, gamma=0.99, device="cp
             torch.stack([sequences[b][t]["obs"] for t in range(seq_len)])
             for b in range(batch_size)
         ]
-    ).to(
-        device
-    )  # [batch_size, seq_len, obs_dim]
+    ).to(device)  # [batch_size, seq_len, obs_dim]
 
     next_obs_batch = torch.stack(
         [
             torch.stack([sequences[b][t]["next_obs"] for t in range(seq_len)])
             for b in range(batch_size)
         ]
-    ).to(
-        device
-    )  # [batch_size, seq_len, obs_dim]
+    ).to(device)  # [batch_size, seq_len, obs_dim]
 
     actions_batch = torch.tensor(
         [
@@ -496,8 +490,6 @@ def compute_td_loss_trial(
 
         # Process each chunk
         for chunk_idx, (chunk_start, chunk_end) in enumerate(chunks):
-            chunk_length = chunk_end - chunk_start
-
             # Forward pass through chunk
             q_values_list = []
             states_list = [state]  # Store initial state for this chunk

@@ -30,7 +30,7 @@ import torch.nn.functional as F
 import tqdm
 import wandb
 
-import temporal_order_env  # registers TemporalOrder-v0 / TemporalOrder10-v0 / TemporalOrder20-v0
+import temporal_order_env  # noqa: F401 — registers TemporalOrder-v0 / TemporalOrder10-v0 / TemporalOrder20-v0
 
 # Local imports
 from model_utils import ExperimentManager
@@ -627,7 +627,7 @@ def evaluate(args):
             rewards.append(episode_reward)
             lengths.append(episode_length)
             tqdm.tqdm.write(
-                f"Episode {ep+1}/{args.num_eval_episodes}: "
+                f"Episode {ep + 1}/{args.num_eval_episodes}: "
                 f"Reward = {episode_reward:.2f}, Length = {episode_length}"
             )
 

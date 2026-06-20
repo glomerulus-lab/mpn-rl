@@ -208,10 +208,13 @@ for col, (t_obs, t_gt, t_rew, t_act) in enumerate(trials):
 
     # Ground truth inserted after MPN action row
     gt_signal = np.full(len(t_obs), float(max(t_gt)))
-    all_rows = [
-        (channels[0][0], channels[0][1], channels[0][2]),  # MPN action
-        ("Ground Truth", GT_COLOR, gt_signal),
-    ] + [(lbl, col_, sig) for lbl, col_, sig in channels[1:]]
+    all_rows = (
+        [
+            (channels[0][0], channels[0][1], channels[0][2]),  # MPN action
+            ("Ground Truth", GT_COLOR, gt_signal),
+        ]
+        + [(lbl, col_, sig) for lbl, col_, sig in channels[1:]]
+    )
 
     for ci, (lbl, color, signal) in enumerate(all_rows):
         off = ci * OFFSET

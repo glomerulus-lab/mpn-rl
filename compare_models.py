@@ -21,11 +21,10 @@ import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-import neurogym  # Register neurogym environments
+import neurogym  # noqa: F401 — registers neurogym environments
 import numpy as np
 import torch
-from tensordict.nn import TensorDictModule as Mod
-from tensordict.nn import TensorDictSequential as Seq
+from tensordict.nn import TensorDictModule as Mod, TensorDictSequential as Seq
 from torchrl.envs import (
     Compose,
     ExplorationType,
@@ -37,7 +36,7 @@ from torchrl.envs import (
 from torchrl.envs.libs.gym import GymEnv
 from torchrl.modules import MLP, LSTMModule, QValueModule
 
-import temporal_order_env  # Register TemporalOrder-v0 / TemporalOrder10-v0 / TemporalOrder20-v0
+import temporal_order_env  # noqa: F401 — registers TemporalOrder-v0 / TemporalOrder10-v0 / TemporalOrder20-v0
 from model_utils import ExperimentManager
 from mpn_torchrl_module import MPNModule
 from rnn_module import RNNModule
@@ -147,8 +146,6 @@ def build_mpn_policy(env: TransformedEnv, config: Dict, device: torch.device) ->
     """Build MPN policy architecture matching training setup."""
     hidden_dim = config["hidden_dim"]
     num_layers = config.get("num_layers", 1)
-    eta = config.get("eta", 0.1)
-    lambda_decay = config.get("lambda_decay", 0.95)
     activation = config.get("activation", "tanh")
     freeze_plasticity = config.get("model_type") == "mpn-frozen"
 
@@ -157,7 +154,7 @@ def build_mpn_policy(env: TransformedEnv, config: Dict, device: torch.device) ->
 
     layers = []
     for layer_idx in range(num_layers):
-        in_key = "observation" if layer_idx == 0 else f"embed_{layer_idx-1}"
+        in_key = "observation" if layer_idx == 0 else f"embed_{layer_idx - 1}"
         out_key = f"embed_{layer_idx}"
 
         in_keys = [in_key, f"recurrent_state_{layer_idx}"]
@@ -183,7 +180,9 @@ def build_mpn_policy(env: TransformedEnv, config: Dict, device: torch.device) ->
         device=device,
     )
     mlp[-1].bias.data.fill_(0.0)
-    mlp_module = Mod(mlp, in_keys=[f"embed_{num_layers-1}"], out_keys=["action_value"])
+    mlp_module = Mod(
+        mlp, in_keys=[f"embed_{num_layers - 1}"], out_keys=["action_value"]
+    )
 
     qval = QValueModule(spec=env.action_spec)
 
@@ -207,7 +206,7 @@ def build_rnn_policy(env: TransformedEnv, config: Dict, device: torch.device) ->
         nonlinearity=activation,
         device=device,
         in_key="observation",
-        out_key=f"embed_{num_layers-1}",
+        out_key=f"embed_{num_layers - 1}",
     )
     env.append_transform(rnn_module.make_tensordict_primer())
 
@@ -220,7 +219,9 @@ def build_rnn_policy(env: TransformedEnv, config: Dict, device: torch.device) ->
         device=device,
     )
     mlp[-1].bias.data.fill_(0.0)
-    mlp_module = Mod(mlp, in_keys=[f"embed_{num_layers-1}"], out_keys=["action_value"])
+    mlp_module = Mod(
+        mlp, in_keys=[f"embed_{num_layers - 1}"], out_keys=["action_value"]
+    )
 
     qval = QValueModule(spec=env.action_spec)
 
@@ -242,7 +243,7 @@ def build_lstm_policy(env: TransformedEnv, config: Dict, device: torch.device) -
         num_layers=num_layers,
         device=device,
         in_key="observation",
-        out_key=f"embed_{num_layers-1}",
+        out_key=f"embed_{num_layers - 1}",
     )
     env.append_transform(lstm_module.make_tensordict_primer())
 
@@ -255,7 +256,9 @@ def build_lstm_policy(env: TransformedEnv, config: Dict, device: torch.device) -
         device=device,
     )
     mlp[-1].bias.data.fill_(0.0)
-    mlp_module = Mod(mlp, in_keys=[f"embed_{num_layers-1}"], out_keys=["action_value"])
+    mlp_module = Mod(
+        mlp, in_keys=[f"embed_{num_layers - 1}"], out_keys=["action_value"]
+    )
 
     qval = QValueModule(spec=env.action_spec)
 
@@ -561,7 +564,7 @@ def compare_models(
 
     results["models"]["random"] = random_metrics
 
-    print(f"\n  Results:")
+    print("\n  Results:")
     if "parameter_count" in random_metrics:
         print(f"    Parameters:      {random_metrics['parameter_count']:,}")
     if "cumulative_reward" in random_metrics:
@@ -614,7 +617,7 @@ def compare_models(
 
         results["models"][exp_name] = model_metrics
 
-        print(f"\n  Results:")
+        print("\n  Results:")
         if "parameter_count" in model_metrics:
             print(f"    Parameters:      {model_metrics['parameter_count']:,}")
         if "cumulative_reward" in model_metrics:
@@ -782,7 +785,7 @@ def main():
         description="Compare trained models on evaluation metrics",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"""
-Available metrics: {', '.join(AVAILABLE_METRICS)}
+Available metrics: {", ".join(AVAILABLE_METRICS)}
 
 Examples:
     # Compare all experiments for an environment

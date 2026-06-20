@@ -32,7 +32,6 @@ PAPER_ENVS = {
 def test_env_basic(env_name: str) -> dict:
     """Test if environment can be created and stepped."""
     import neurogym as ngym
-    import numpy as np
 
     try:
         env = ngym.make(env_name)
@@ -68,8 +67,7 @@ def test_env_basic(env_name: str) -> dict:
 
 def test_env_torchrl(env_name: str) -> dict:
     """Test if environment works with TorchRL wrapper."""
-    import neurogym  # Register neurogym environments with gymnasium
-    import torch
+    import neurogym  # noqa: F401 — registers neurogym environments with gymnasium
     from torchrl.envs import Compose, InitTracker, StepCounter, TransformedEnv
     from torchrl.envs.libs.gym import GymEnv
 
@@ -132,9 +130,6 @@ def test_env_seeding(env_name: str) -> dict:
         reseed_direct(env, 42)
         env.reset()
         t2 = dict(env.unwrapped.trial)
-        reseed_direct(env, 99)
-        env.reset()
-        t3 = dict(env.unwrapped.trial)
         env.close()
 
         def trials_equal(a, b):
@@ -197,7 +192,6 @@ def test_env_training(
 ) -> dict:
     """Run a quick training test on the environment."""
     import shutil
-    import tempfile
 
     exp_name = f"test-{env_name.replace('-v0', '').lower()}-{model_type}"
 

@@ -17,7 +17,6 @@ import matplotlib
 
 matplotlib.use("Agg")
 import imageio.v2 as imageio
-import matplotlib.cm as mcm
 import matplotlib.colors as mcolors
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
@@ -26,7 +25,6 @@ import numpy as np
 import torch
 
 from main_a2c import TrialEndWrapper
-from model_utils import ExperimentManager
 from mpn_module import MPN
 
 
@@ -222,7 +220,6 @@ def _render_frame(
 ):
     """Update figure in-place; return RGB array."""
     M_list = step_data["M"]
-    obs = step_data["obs"]
     action = step_data["action"]
     reward = step_data["reward"]
     trial_type = all_trial_types[current_ep]
@@ -249,7 +246,6 @@ def _render_frame(
     ax_action.set_xlim(-0.5, ep_len - 0.5)
 
     # --- Observation timeline ---
-    obs_dim = len(obs_lines)
     for i, line in enumerate(obs_lines):
         line.set_data(xs, [s["obs"][i] for s in ep_steps])
     cursor_obs.set_xdata([ep_step])

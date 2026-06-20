@@ -51,23 +51,27 @@ py-modules = [
 
 [dependency-groups]
 dev = [
-    "black>=25.11.0",
-    "isort>=6.1.0",
+    "ruff>=0.8.0",
     "mypy>=1.19.1",
     "pytest>=8.4.2",
 ]
 
-[tool.black]
-line-length = 88
-target-version = ["py313"]
-extend-exclude = '/\.uv-cache/'
+[tool.ruff]
+target-version = "py313"
+extend-exclude = [".uv-cache"]
 
-[tool.isort]
-profile = "black"
-line_length = 88
-multi_line_output = 3
-include_trailing_comma = true
-skip = [".uv-cache", ".venv"]
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]  # Ignore line length. Let the formatter handle it.
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+
+[tool.ruff.lint.per-file-ignores]
+# These scripts call warnings.filterwarnings(...) before importing, so imports
+# legitimately follow code (E402).
+"check_reward_timing.py" = ["E402"]
+"plot_trial_lengths*.py" = ["E402"]
 
 [tool.mypy]
 python_version = "3.13"

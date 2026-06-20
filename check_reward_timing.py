@@ -107,9 +107,9 @@ def main():
 
     for env_name in ENVS:
         short = ENV_SHORT.get(env_name, env_name)
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print(f"  {short}  ({env_name})")
-        print(f"{'='*70}")
+        print(f"{'=' * 70}")
 
         try:
             trials = collect_trials(env_name, args.n_trials, args.seed)
@@ -143,7 +143,7 @@ def main():
         print(f"  Trials with reward: {sum(any_rew)}/{len(trials)}")
         if last_rew_frac:
             print(
-                f"  Last reward at   : {np.mean(last_rew_frac)*100:.0f}% through trial "
+                f"  Last reward at   : {np.mean(last_rew_frac) * 100:.0f}% through trial "
                 f"(1.0 = final step)"
             )
         print()
@@ -153,7 +153,7 @@ def main():
         print(
             f"  {'Trial':<6} {'Len':>4}  {'Reward steps':<28}  {'Bar (. = 0, + = pos, - = neg)'}"
         )
-        print(f"  {'-'*6} {'-'*4}  {'-'*28}  {'-'*40}")
+        print(f"  {'-' * 6} {'-' * 4}  {'-' * 28}  {'-' * 40}")
         for idx, trial in enumerate(trials):
             nonzero = [(i, trial[i]) for i in range(len(trial)) if trial[i] != 0]
             rew_str = (

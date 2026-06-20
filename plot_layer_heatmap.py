@@ -160,7 +160,7 @@ for idx, env in enumerate(ENVS):
         env_label = env_label[:split] + "\n" + env_label[split:]
     ax.set_title(env_label, fontsize=8, fontweight="bold", pad=4, linespacing=1.2)
     ax.set_xticks(range(len(LAYERS)))
-    ax.set_xticklabels([str(l) for l in LAYERS], fontsize=8)
+    ax.set_xticklabels([str(layer) for layer in LAYERS], fontsize=8)
     ax.set_yticks(range(len(DIMS)))
     ax.set_yticklabels([str(d) for d in DIMS], fontsize=8)
 

@@ -71,7 +71,7 @@ df = con.execute(f"""
             )) AS peak_reward
         FROM configs c
         JOIN metrics m ON c.experiment_name = m.experiment_name
-        WHERE c.tag IN ({', '.join(f"'{t}'" for t in TAGS)})
+        WHERE c.tag IN ({", ".join(f"'{t}'" for t in TAGS)})
           AND c.env_name LIKE '%-v0'
         GROUP BY
             c.experiment_name, c.tag, c.env_name, c.model_type,

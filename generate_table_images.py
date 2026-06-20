@@ -12,7 +12,6 @@ Usage:
 
 import argparse
 import json
-import os
 import subprocess
 from pathlib import Path
 
@@ -266,7 +265,7 @@ def compile_latex(tex_path, output_dir):
         text=True,
     )
     if result.returncode != 0:
-        print(f"  LaTeX compilation warning (may still produce output):")
+        print("  LaTeX compilation warning (may still produce output):")
         # Only print last few lines of error
         err_lines = result.stdout.strip().split("\n")
         for line in err_lines[-5:]:
@@ -299,7 +298,6 @@ def process_environment(json_path):
     results = load_results(json_path)
     env_name = results["metadata"]["environment"]
     env_short = env_name.replace("-v0", "").lower()
-    display_name = ENV_DISPLAY_NAMES.get(env_name, env_name)
 
     print(f"\nProcessing: {env_name}")
 

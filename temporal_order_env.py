@@ -312,10 +312,10 @@ if __name__ == "__main__":
             trials_seen += 1
 
     print(
-        f"Oracle accuracy: {oracle_correct}/{n_trials} = {oracle_correct/n_trials:.1%}  (expect 100%)"
+        f"Oracle accuracy: {oracle_correct}/{n_trials} = {oracle_correct / n_trials:.1%}  (expect 100%)"
     )
     print(
-        f"Random accuracy: {random_correct}/{n_trials} = {random_correct/n_trials:.1%}  (expect ~50%)"
+        f"Random accuracy: {random_correct}/{n_trials} = {random_correct / n_trials:.1%}  (expect ~50%)"
     )
 
     print("\n=== Seeding reproducibility ===")
@@ -344,7 +344,7 @@ if __name__ == "__main__":
     obs, info = env.reset()
     for trial_num in range(2):
         print(
-            f"\n  Trial {trial_num+1}: S1@step{env._s1_step}, S2@step{env._s2_step}, GT={env.trial['ground_truth']}"
+            f"\n  Trial {trial_num + 1}: S1@step{env._s1_step}, S2@step{env._s2_step}, GT={env.trial['ground_truth']}"
         )
         print(f"    t=0  obs={obs}")
         t = 1
