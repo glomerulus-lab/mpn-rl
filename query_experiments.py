@@ -4,34 +4,21 @@ and config.json.  This script uses an in-memory DuckDB to glob all those
 files on demand, so queries always reflect the current state of running
 experiments with no locking or concurrency issues.
 
-The SQLite DB (experiments.sqlite) is still updated best-effort during
-training and can be rebuilt at any time with `backfill`, but it is NOT
-required for any query here.
-
 Usage:
     # Live summary — works while jobs are running
     python query_experiments.py list
     python query_experiments.py best --env GoNogo-v0
     python query_experiments.py compare --model-type mpn
     python query_experiments.py sql "SELECT ..."
-
-    # Rebuild the SQLite index from JSON files (optional, for archival)
-    python query_experiments.py backfill
-
-    # One-time migration from old experiments.duckdb
-    python query_experiments.py migrate
 """
 
 import argparse
 import json
-import sqlite3
 from datetime import datetime
 from pathlib import Path
 
 import duckdb
 import pandas as pd
-
-from model_utils import EXPERIMENTS_DB, SCHEMA_VERSION, _get_db
 
 # ---------------------------------------------------------------------------
 # Live DuckDB connection (reads files directly, always up-to-date)
@@ -100,130 +87,6 @@ def _live_con() -> duckdb.DuckDBPyConnection:
 def _query(sql: str) -> pd.DataFrame:
     con = _live_con()
     return con.execute(sql).fetchdf()
-
-
-# ---------------------------------------------------------------------------
-# Backfill into SQLite (optional — for archival / fast historical queries)
-# ---------------------------------------------------------------------------
-
-
-def backfill(base_dir: str = "experiments"):
-    """Import all existing JSON experiments into the SQLite DB."""
-    con = _get_db()
-    exp_dirs = [p for p in Path(base_dir).iterdir() if p.is_dir()]
-    imported = 0
-
-    for exp_dir in sorted(exp_dirs):
-        config_path = exp_dir / "config.json"
-        if not config_path.exists():
-            continue
-
-        with open(config_path) as f:
-            config = json.load(f)
-
-        experiment_name = config.get("experiment_name", exp_dir.name)
-        schema_version = config.get("schema_version", 0)
-        created_at = config.get(
-            "created_at",
-            datetime.fromtimestamp(config_path.stat().st_mtime).isoformat(),
-        )
-        completed = int((exp_dir / "checkpoints" / "final_model.pt").exists())
-
-        con.execute(
-            """
-            INSERT OR REPLACE INTO experiments
-                (experiment_name, schema_version, created_at, completed, config)
-            VALUES (?, ?, ?, ?, ?)
-        """,
-            (
-                experiment_name,
-                schema_version,
-                created_at,
-                completed,
-                json.dumps(config),
-            ),
-        )
-
-        metrics_path = exp_dir / "metrics.jsonl"
-        if metrics_path.exists():
-            with open(metrics_path) as f:
-                for line in f:
-                    row = json.loads(line)
-                    con.execute(
-                        """
-                        INSERT OR REPLACE INTO training_history
-                            (experiment_name, schema_version, frame, reward, length, loss, epsilon,
-                             oracle_reward, pct_oracle)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                        (
-                            experiment_name,
-                            schema_version,
-                            row.get("frame"),
-                            row.get("reward"),
-                            row.get("length"),
-                            row.get("loss"),
-                            row.get("epsilon"),
-                            row.get("oracle_reward"),
-                            row.get("pct_oracle"),
-                        ),
-                    )
-
-        imported += 1
-        print(f"  imported: {experiment_name}")
-
-    con.commit()
-    con.close()
-    print(f"\nDone. {imported} experiments imported.")
-
-
-# ---------------------------------------------------------------------------
-# Migrate from old DuckDB
-# ---------------------------------------------------------------------------
-
-
-def migrate_from_duckdb():
-    """One-time migration from the old experiments.duckdb to experiments.sqlite."""
-    old_db = Path("experiments/experiments.duckdb")
-    if not old_db.exists():
-        print("No experiments.duckdb found — nothing to migrate.")
-        return
-
-    print(f"Migrating from {old_db} ...")
-    duck = duckdb.connect(str(old_db), read_only=True)
-    con = _get_db()
-
-    rows = duck.execute("""
-        SELECT experiment_name, schema_version, created_at, completed, config
-        FROM experiments
-    """).fetchall()
-    for row in rows:
-        con.execute(
-            """
-            INSERT OR REPLACE INTO experiments
-                (experiment_name, schema_version, created_at, completed, config)
-            VALUES (?, ?, ?, ?, ?)
-        """,
-            (row[0], row[1], str(row[2]), int(row[3] or 0), row[4]),
-        )
-    print(f"  migrated {len(rows)} experiments")
-
-    rows = duck.execute("SELECT * FROM training_history").fetchall()
-    for row in rows:
-        con.execute(
-            """
-            INSERT OR REPLACE INTO training_history
-                (experiment_name, schema_version, frame, reward, length, loss, epsilon)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-            row,
-        )
-    print(f"  migrated {len(rows)} history rows")
-
-    con.commit()
-    con.close()
-    duck.close()
-    print("Migration complete.")
 
 
 # ---------------------------------------------------------------------------
@@ -420,8 +283,6 @@ def main():
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("backfill", help="Rebuild SQLite index from JSON files")
-    sub.add_parser("migrate", help="One-time migration from old experiments.duckdb")
     sub.add_parser(
         "list", help="List all experiments with latest frame and best reward"
     )
@@ -451,10 +312,6 @@ def main():
 
     if args.command == "today":
         cmd_today(args)
-    elif args.command == "backfill":
-        backfill()
-    elif args.command == "migrate":
-        migrate_from_duckdb()
     elif args.command == "list":
         cmd_list(args)
     elif args.command == "best":

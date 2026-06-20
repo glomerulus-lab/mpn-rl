@@ -13,7 +13,6 @@ Handles:
 import json
 import os
 import random
-import sqlite3
 import time
 from collections import deque, namedtuple
 from datetime import datetime
@@ -668,60 +667,6 @@ def generate_experiment_name() -> str:
 
 
 SCHEMA_VERSION = 1
-EXPERIMENTS_DB = Path("experiments/experiments.sqlite")
-
-
-def _get_db() -> sqlite3.Connection:
-    """Open (or create) the SQLite experiments DB with WAL mode.
-
-    Note: the DB is an index only — JSON files in each experiment directory
-    are the source of truth.  DB writes are best-effort: if the filesystem
-    doesn't support SQLite locking (e.g. NFS), writes fail silently and the
-    JSON files remain intact.  Run `python query_experiments.py backfill` on
-    the head node to rebuild the index from JSON at any time.
-    """
-    EXPERIMENTS_DB.parent.mkdir(parents=True, exist_ok=True)
-    con = sqlite3.connect(str(EXPERIMENTS_DB), timeout=60)
-    con.execute("PRAGMA journal_mode=WAL")
-    con.execute("PRAGMA busy_timeout=60000")  # 60 s auto-retry on lock
-    con.execute("PRAGMA synchronous=NORMAL")  # safe + faster than FULL
-    con.execute("""
-        CREATE TABLE IF NOT EXISTS experiments (
-            experiment_name TEXT PRIMARY KEY,
-            schema_version  INTEGER NOT NULL,
-            created_at      TEXT NOT NULL,
-            completed       INTEGER NOT NULL DEFAULT 0,
-            config          TEXT NOT NULL
-        )
-    """)
-    con.execute("""
-        CREATE TABLE IF NOT EXISTS training_history (
-            experiment_name TEXT NOT NULL,
-            schema_version  INTEGER NOT NULL,
-            frame           INTEGER NOT NULL,
-            episode         INTEGER,
-            reward          REAL,
-            length          INTEGER,
-            loss            REAL,
-            epsilon         REAL,
-            oracle_reward   REAL,
-            pct_oracle      REAL,
-            PRIMARY KEY (experiment_name, frame)
-        )
-    """)
-    con.commit()
-    return con
-
-
-def _try_db_write(fn):
-    """Call fn() which performs a DB write; silently ignore any DB errors.
-
-    Training must not crash due to DB issues — JSON files are the real record.
-    """
-    try:
-        fn()
-    except Exception:
-        pass
 
 
 class ExperimentManager:
@@ -775,25 +720,6 @@ class ExperimentManager:
         config = {**config, "schema_version": SCHEMA_VERSION, "created_at": created_at}
         with open(self.config_path, "w") as f:
             json.dump(config, f, indent=2, default=str)
-
-        def _write():
-            con = _get_db()
-            con.execute(
-                """
-                INSERT OR REPLACE INTO experiments (experiment_name, schema_version, created_at, config)
-                VALUES (?, ?, ?, ?)
-            """,
-                (
-                    self.experiment_name,
-                    SCHEMA_VERSION,
-                    created_at,
-                    json.dumps(config, default=str),
-                ),
-            )
-            con.commit()
-            con.close()
-
-        _try_db_write(_write)
         print(f"Saved config to {self.config_path}")
 
     def load_config(self) -> Dict[str, Any]:
@@ -878,7 +804,7 @@ class ExperimentManager:
         pct_oracle: float = None,
         episode: int = None,
     ):
-        """Append a single eval step to metrics.jsonl and the DB."""
+        """Append a single eval step to metrics.jsonl."""
         with open(self.metrics_path, "a") as f:
             f.write(
                 json.dumps(
@@ -900,47 +826,6 @@ class ExperimentManager:
                 )
                 + "\n"
             )
-
-        def _write():
-            con = _get_db()
-            con.execute(
-                """
-                INSERT OR REPLACE INTO training_history
-                    (experiment_name, schema_version, frame, episode, reward, length, loss, epsilon,
-                     oracle_reward, pct_oracle)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-                (
-                    self.experiment_name,
-                    SCHEMA_VERSION,
-                    frames,
-                    episode,
-                    reward,
-                    length,
-                    loss,
-                    epsilon,
-                    oracle_reward,
-                    pct_oracle,
-                ),
-            )
-            con.commit()
-            con.close()
-
-        _try_db_write(_write)
-
-    def mark_completed(self):
-        """Mark this experiment as completed in the DB."""
-
-        def _write():
-            con = _get_db()
-            con.execute(
-                "UPDATE experiments SET completed = 1 WHERE experiment_name = ?",
-                (self.experiment_name,),
-            )
-            con.commit()
-            con.close()
-
-        _try_db_write(_write)
 
     def get_best_checkpoint(self) -> Optional[str]:
         """Get path to best model checkpoint."""
