@@ -123,7 +123,7 @@ python query_experiments.py compare --model-type mpn
 - **`model_utils.py`**: ExperimentManager, checkpointing, SQLite metrics
 - **`oracle_agents.py`**: Oracle baselines for all supported environments
 - **`query_experiments.py`**: Live DuckDB queries over experiment output files
-- **`plot_*.py`**: Plotting scripts for rewards, sweeps, trial lengths
+- **`plots/`**: Plotting scripts for rewards, sweeps, trial lengths
 
 ## Experiment Directory Structure
 
