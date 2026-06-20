@@ -22,6 +22,7 @@ dependencies = [
 ]
 
 [tool.setuptools]
+packages = ["models"]
 py-modules = [
     "main_a2c",
     "mpn_module",
@@ -72,6 +73,7 @@ exclude = [
     'compare_models.py',
     'main_a2c.py',
     'model_utils.py',
+    'models/actor_critic.py',
     'mpn_module.py',
     'neurogym_wrapper.py',
     'oracle_agents.py',
