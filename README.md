@@ -116,7 +116,7 @@ python query_experiments.py compare --model-type mpn
 ## Key Files
 
 - **`main_a2c.py`**: CLI entry point — train, eval, render
-- **`mpn_module.py`**: MPN layer with Hebbian plasticity
+- **`nn/mpn.py`**: MPN layer with Hebbian plasticity
 - **`custom_envs.py`**: Custom RL environments (IntervalTiming1D, IntervalDisc1D, DelayMatchSample)
 - **`temporal_order_env.py`**: TemporalOrder environment family
 - **`model_utils.py`**: ExperimentManager, checkpointing, SQLite metrics

@@ -22,10 +22,9 @@ dependencies = [
 ]
 
 [tool.setuptools]
-packages = ["models"]
+packages = ["models", "nn"]
 py-modules = [
     "main_a2c",
-    "mpn_module",
     "model_utils",
     "oracle_agents",
     "temporal_order_env",
@@ -74,8 +73,8 @@ exclude = [
     'main_a2c.py',
     'model_utils.py',
     'models/actor_critic.py',
-    'mpn_module.py',
     'neurogym_wrapper.py',
+    'nn/mpn.py',
     'oracle_agents.py',
     'plots/generate_table_images.py',
     'plots/plot_custom_sweep_bar.py',

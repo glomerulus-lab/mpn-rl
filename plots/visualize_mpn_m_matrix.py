@@ -25,7 +25,7 @@ import numpy as np
 import torch
 
 from main_a2c import TrialEndWrapper
-from mpn_module import MPN
+from nn.mpn import MPN
 
 
 class _ActorCriticNet(torch.nn.Module):
