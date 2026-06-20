@@ -728,8 +728,8 @@ class ExperimentManager:
     """
     Manages experiment directory structure and file I/O.
 
-    Directory structure:
-        experiments/{experiment_name}/
+    Directory structure (root set by experiments_dir, default experiments/):
+        {experiments_dir}/{experiment_name}/
         ├── config.json
         ├── training_history.json
         ├── checkpoints/
@@ -743,19 +743,20 @@ class ExperimentManager:
     """
 
     def __init__(
-        self, experiment_name: Optional[str] = None, base_dir: str = "experiments"
+        self,
+        experiments_dir: str | Path = "experiments",
+        experiment_name: str | None = None,
     ):
         """
         Args:
+            experiments_dir: Root directory for all experiments (default: experiments/)
             experiment_name: Name of experiment (generates random if None)
-            base_dir: Base directory for all experiments
         """
         if experiment_name is None:
             experiment_name = generate_experiment_name()
 
         self.experiment_name = experiment_name
-        self.base_dir = Path(base_dir)
-        self.exp_dir = self.base_dir / experiment_name
+        self.exp_dir = Path(experiments_dir) / experiment_name
 
         # Create directory structure
         self.checkpoint_dir = self.exp_dir / "checkpoints"
@@ -773,7 +774,7 @@ class ExperimentManager:
         created_at = datetime.now().isoformat()
         config = {**config, "schema_version": SCHEMA_VERSION, "created_at": created_at}
         with open(self.config_path, "w") as f:
-            json.dump(config, f, indent=2)
+            json.dump(config, f, indent=2, default=str)
 
         def _write():
             con = _get_db()
@@ -782,7 +783,12 @@ class ExperimentManager:
                 INSERT OR REPLACE INTO experiments (experiment_name, schema_version, created_at, config)
                 VALUES (?, ?, ?, ?)
             """,
-                (self.experiment_name, SCHEMA_VERSION, created_at, json.dumps(config)),
+                (
+                    self.experiment_name,
+                    SCHEMA_VERSION,
+                    created_at,
+                    json.dumps(config, default=str),
+                ),
             )
             con.commit()
             con.close()
@@ -1078,7 +1084,7 @@ if __name__ == "__main__":
 
     # Test experiment manager
     print("\nCreating experiment...")
-    exp = ExperimentManager("test-experiment")
+    exp = ExperimentManager("/tmp/mpn-smoketest", "test-experiment")
     print(f"Created: {exp}")
     print(f"Experiment dir: {exp.exp_dir}")
 

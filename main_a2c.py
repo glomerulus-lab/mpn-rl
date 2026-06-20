@@ -291,7 +291,7 @@ def train_neurogym(args):
     if args.experiment_name is not None:
         args.experiment_name = f"{args.experiment_name}-{args.experiment_id}"
 
-    exp_manager = ExperimentManager(args.experiment_name)
+    exp_manager = ExperimentManager(args.experiments_dir, args.experiment_name)
     print(f"Experiment: {exp_manager.experiment_name}")
     print(f"Directory:  {exp_manager.exp_dir}\n")
 
@@ -301,6 +301,9 @@ def train_neurogym(args):
             env_kwargs = json.load(f)
 
     config = vars(args)
+    config["experiments_dir"] = str(
+        args.experiments_dir
+    )  # Path -> str for JSON + wandb
     config["command"] = "train-neurogym"
     config["algorithm"] = "a2c"
     config["env_kwargs"] = env_kwargs
@@ -584,7 +587,7 @@ def evaluate(args):
     print("Evaluating Agent")
     print("=" * 60)
 
-    exp_manager = ExperimentManager(args.experiment_name)
+    exp_manager = ExperimentManager(args.experiments_dir, args.experiment_name)
     config = exp_manager.load_config()
 
     device = get_device(args.device)
@@ -645,7 +648,7 @@ def render_to_plot(args):
     print("Rendering Agent Episode")
     print("=" * 60)
 
-    exp_manager = ExperimentManager(args.experiment_name)
+    exp_manager = ExperimentManager(args.experiments_dir, args.experiment_name)
     config = exp_manager.load_config()
 
     device = torch.device("cpu")
@@ -726,6 +729,13 @@ def main():
         help="Train on NeuroGym environment with episode-based A2C and full BPTT",
     )
     train_parser.add_argument("--experiment-name", type=str, default=None)
+    train_parser.add_argument(
+        "--experiments-dir",
+        type=Path,
+        default=Path("experiments"),
+        help="Root dir for all experiment output (config, metrics, checkpoints, "
+        "plots) (default: experiments/)",
+    )
     train_parser.add_argument("--env-name", type=str, default="GoNogo-v0")
     train_parser.add_argument(
         "--env-config",
@@ -798,6 +808,12 @@ def main():
     # ------------------------------------------------------------------ #
     eval_parser = subparsers.add_parser("eval", help="Evaluate trained agent")
     eval_parser.add_argument("--experiment-name", type=str, required=True)
+    eval_parser.add_argument(
+        "--experiments-dir",
+        type=Path,
+        default=Path("experiments"),
+        help="Root dir the experiment was logged under (default: experiments/)",
+    )
     eval_parser.add_argument("--num-eval-episodes", type=int, default=10)
     eval_parser.add_argument("--checkpoint", type=str, default=None)
     eval_parser.add_argument("--max-episode-steps", type=int, default=500)
@@ -808,6 +824,12 @@ def main():
     # ------------------------------------------------------------------ #
     render_parser = subparsers.add_parser("render", help="Render episode to plot")
     render_parser.add_argument("--experiment-name", type=str, required=True)
+    render_parser.add_argument(
+        "--experiments-dir",
+        type=Path,
+        default=Path("experiments"),
+        help="Root dir the experiment was logged under (default: experiments/)",
+    )
     render_parser.add_argument("--output", type=str, default=None)
     render_parser.add_argument("--checkpoint", type=str, default=None)
     render_parser.add_argument("--max-episode-steps", type=int, default=500)

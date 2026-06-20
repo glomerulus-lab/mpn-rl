@@ -74,10 +74,10 @@ EXCLUDED_HPARAM_KEYS = {
 
 
 def discover_experiments_by_env(
-    env_name: str, base_dir: str = "experiments"
+    experiments_dir: str | Path, env_name: str
 ) -> List[str]:
     """Scan experiments/ for all experiment dirs matching env_name with best_model.pt."""
-    base = Path(base_dir)
+    base = Path(experiments_dir)
     if not base.exists():
         raise FileNotFoundError(f"Experiments directory not found: {base}")
 
@@ -269,7 +269,7 @@ def count_parameters(model: torch.nn.Module) -> int:
 
 
 def load_model_from_experiment(
-    experiment_name: str, device: torch.device
+    experiments_dir: str | Path, experiment_name: str, device: torch.device
 ) -> Tuple[Seq, TransformedEnv, Dict, str]:
     """
     Load a trained model from an experiment.
@@ -277,7 +277,7 @@ def load_model_from_experiment(
     Returns:
         Tuple of (policy, env, config, model_type)
     """
-    exp_manager = ExperimentManager(experiment_name)
+    exp_manager = ExperimentManager(experiments_dir, experiment_name)
     config = exp_manager.load_config()
 
     model_type = config.get("model_type", "mpn")
@@ -461,6 +461,7 @@ def compute_metrics(
 
 
 def compare_models(
+    experiments_dir: str | Path,
     experiment_names: List[str],
     metrics: List[str],
     num_episodes: int = 10,
@@ -488,7 +489,7 @@ def compare_models(
         print(f"\nLoading: {exp_name}")
         try:
             policy, env, config, model_type = load_model_from_experiment(
-                exp_name, device
+                experiments_dir, exp_name, device
             )
             policies[exp_name] = policy
             envs[exp_name] = env
@@ -811,6 +812,12 @@ Examples:
         help="Environment name to discover and compare all experiments for",
     )
     parser.add_argument(
+        "--experiments-dir",
+        type=Path,
+        default=Path("experiments"),
+        help="Root dir the experiments were logged under (default: experiments/)",
+    )
+    parser.add_argument(
         "--metrics",
         type=str,
         nargs="+",
@@ -847,7 +854,9 @@ Examples:
 
     # Resolve experiment list
     if args.env_name:
-        experiment_names = discover_experiments_by_env(args.env_name)
+        experiment_names = discover_experiments_by_env(
+            args.experiments_dir, args.env_name
+        )
         if not experiment_names:
             print(f"No completed experiments found for environment: {args.env_name}")
             return
@@ -873,6 +882,7 @@ Examples:
             metrics.append(m)
 
     results = compare_models(
+        experiments_dir=args.experiments_dir,
         experiment_names=experiment_names,
         metrics=metrics,
         num_episodes=args.num_episodes,
