@@ -19,6 +19,7 @@ dependencies = [
     "duckdb>=1.4.5",
     "imageio>=2.37.2",
     "pandas>=2.3.3",
+    "tyro>=1.0.15",
 ]
 
 [tool.setuptools]

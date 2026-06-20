@@ -13,12 +13,13 @@ Examples:
     python main_a2c.py render --experiment-name my-agent --output render.png
 """
 
-import argparse
 import json
 import math
 import random
 import uuid
+from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Annotated, Literal, Union
 
 import gymnasium
 import matplotlib.pyplot as plt
@@ -27,6 +28,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import tqdm
+import tyro
 import wandb
 
 import temporal_order_env  # noqa: F401 — registers TemporalOrder-v0 / TemporalOrder10-v0 / TemporalOrder20-v0
@@ -177,7 +179,65 @@ def _evaluate_actorcritic(model, env_factory, num_episodes, max_steps, seed, dev
     return float(np.mean(rewards)), float(np.std(rewards)), rewards
 
 
-def train_neurogym(args):
+@dataclass
+class TrainConfig:
+    """Train on a NeuroGym environment with episode-based A2C and full BPTT."""
+
+    experiment_name: str | None = None
+    experiments_dir: Annotated[
+        Path,
+        tyro.conf.arg(
+            help="Root dir for all experiment output "
+            "(config, metrics, checkpoints, plots)"
+        ),
+    ] = Path("experiments")
+    env_name: str = "GoNogo-v0"
+    env_config: Annotated[
+        str | None,
+        tyro.conf.arg(help="Path to JSON file of kwargs passed to neurogym.make()"),
+    ] = None
+    max_episode_steps: int = 500
+    tbptt_len: Annotated[
+        int, tyro.conf.arg(help="Truncated BPTT chunk length (0 = full episode)")
+    ] = 50
+    total_frames: int = 500000
+    num_episodes: Annotated[
+        int, tyro.conf.arg(help="Stop after N episodes (0 = use total_frames)")
+    ] = 0
+    model_type: Literal["mpn", "mpn-frozen", "rnn", "lstm"] = "lstm"
+    hidden_dim: int = 128
+    num_layers: int = 1
+    activation: Literal["relu", "tanh", "sigmoid"] = "tanh"
+    lambda_max: float = 0.99
+    eta_init: float = 0.01
+    lambda_init: float = 0.99
+    gamma: float = 0.98
+    entropy_coef: float = 0.01
+    value_coef: float = 1.0
+    normalize_advantages: bool = False
+    learning_rate: float = 1e-4
+    weight_decay: float = 0.0
+    grad_clip: float = 10.0
+    print_freq: Annotated[
+        int, tyro.conf.arg(help="Evaluate and log every N episodes")
+    ] = 50
+    num_eval_episodes: int = 10
+    device: str = "cpu"
+    tag: str | None = None
+    experiment_id: str | None = None
+    mpn_bias: Annotated[
+        bool,
+        tyro.conf.arg(
+            help="Use bias term in MPN hidden layer; --no-mpn-bias disables it "
+            "(correction W*(M+1) is kept)"
+        ),
+    ] = True
+    wandb: bool = False
+    wandb_project: str = "mpn-rl"
+    wandb_entity: str | None = None
+
+
+def train_neurogym(args: TrainConfig):
     """Train on NeuroGym env using episode-based A2C with full BPTT.
 
     Uses ActorCriticNet (matching the example repo architecture) for proper
@@ -202,7 +262,7 @@ def train_neurogym(args):
         with open(args.env_config) as f:
             env_kwargs = json.load(f)
 
-    config = vars(args)
+    config = asdict(args)
     config["experiments_dir"] = str(
         args.experiments_dir
     )  # Path -> str for JSON + wandb
@@ -483,7 +543,21 @@ def train_neurogym(args):
         wandb.finish()
 
 
-def evaluate(args):
+@dataclass
+class EvalConfig:
+    """Evaluate a trained agent."""
+
+    experiment_name: str
+    experiments_dir: Annotated[
+        Path, tyro.conf.arg(help="Root dir the experiment was logged under")
+    ] = Path("experiments")
+    num_eval_episodes: int = 10
+    checkpoint: str | None = None
+    max_episode_steps: int = 500
+    device: str = "cpu"
+
+
+def evaluate(args: EvalConfig):
     """Evaluate trained agent."""
     print("=" * 60)
     print("Evaluating Agent")
@@ -544,7 +618,20 @@ def evaluate(args):
     print("=" * 60)
 
 
-def render_to_plot(args):
+@dataclass
+class RenderConfig:
+    """Render an episode to a static plot."""
+
+    experiment_name: str
+    experiments_dir: Annotated[
+        Path, tyro.conf.arg(help="Root dir the experiment was logged under")
+    ] = Path("experiments")
+    output: str | None = None
+    checkpoint: str | None = None
+    max_episode_steps: int = 500
+
+
+def render_to_plot(args: RenderConfig):
     """Render episode to static plot."""
     print("=" * 60)
     print("Rendering Agent Episode")
@@ -619,133 +706,21 @@ def render_to_plot(args):
     print(f"Episode reward: {np.sum(rewards):.2f}, length: {len(rewards)}")
 
 
+Command = Union[
+    Annotated[TrainConfig, tyro.conf.subcommand("train-neurogym")],
+    Annotated[EvalConfig, tyro.conf.subcommand("eval")],
+    Annotated[RenderConfig, tyro.conf.subcommand("render")],
+]
+
+
 def main():
-    parser = argparse.ArgumentParser(description="MPN A2C with TorchRL")
-    subparsers = parser.add_subparsers(dest="command", help="Command to run")
-
-    # ------------------------------------------------------------------ #
-    # train-neurogym (episode-based A2C with full BPTT)                   #
-    # ------------------------------------------------------------------ #
-    train_parser = subparsers.add_parser(
-        "train-neurogym",
-        help="Train on NeuroGym environment with episode-based A2C and full BPTT",
-    )
-    train_parser.add_argument("--experiment-name", type=str, default=None)
-    train_parser.add_argument(
-        "--experiments-dir",
-        type=Path,
-        default=Path("experiments"),
-        help="Root dir for all experiment output (config, metrics, checkpoints, "
-        "plots) (default: experiments/)",
-    )
-    train_parser.add_argument("--env-name", type=str, default="GoNogo-v0")
-    train_parser.add_argument(
-        "--env-config",
-        type=str,
-        default=None,
-        help="Path to JSON file of kwargs passed to neurogym.make()",
-    )
-    train_parser.add_argument("--max-episode-steps", type=int, default=500)
-    train_parser.add_argument(
-        "--tbptt-len",
-        type=int,
-        default=50,
-        help="Truncated BPTT chunk length (0 = full episode)",
-    )
-    train_parser.add_argument("--total-frames", type=int, default=500000)
-    train_parser.add_argument(
-        "--num-episodes",
-        type=int,
-        default=0,
-        help="Stop after N episodes (0 = use --total-frames)",
-    )
-    train_parser.add_argument(
-        "--model-type",
-        type=str,
-        default="lstm",
-        choices=["mpn", "mpn-frozen", "rnn", "lstm"],
-    )
-    train_parser.add_argument("--hidden-dim", type=int, default=128)
-    train_parser.add_argument("--num-layers", type=int, default=1)
-    train_parser.add_argument(
-        "--activation", type=str, default="tanh", choices=["relu", "tanh", "sigmoid"]
-    )
-    train_parser.add_argument("--lambda-max", type=float, default=0.99)
-    train_parser.add_argument("--eta-init", type=float, default=0.01)
-    train_parser.add_argument("--lambda-init", type=float, default=0.99)
-    train_parser.add_argument("--gamma", type=float, default=0.98)
-    train_parser.add_argument("--entropy-coef", type=float, default=0.01)
-    train_parser.add_argument("--value-coef", type=float, default=1.0)
-    train_parser.add_argument(
-        "--normalize-advantages", action="store_true", default=False
-    )
-    train_parser.add_argument("--learning-rate", type=float, default=1e-4)
-    train_parser.add_argument("--weight-decay", type=float, default=0.0)
-    train_parser.add_argument("--grad-clip", type=float, default=10.0)
-    train_parser.add_argument(
-        "--print-freq", type=int, default=50, help="Evaluate and log every N episodes"
-    )
-    train_parser.add_argument("--num-eval-episodes", type=int, default=10)
-    train_parser.add_argument("--device", type=str, default="cpu")
-    train_parser.add_argument("--tag", type=str, default=None)
-    train_parser.add_argument("--experiment-id", type=str, default=None)
-    train_parser.add_argument(
-        "--mpn-bias",
-        action="store_true",
-        default=True,
-        help="Use bias term in MPN hidden layer (default: True)",
-    )
-    train_parser.add_argument(
-        "--no-mpn-bias",
-        dest="mpn_bias",
-        action="store_false",
-        help="Disable bias term in MPN hidden layer; correction W*(M+1) is kept",
-    )
-    train_parser.add_argument("--wandb", action="store_true", default=False)
-    train_parser.add_argument("--wandb-project", type=str, default="mpn-rl")
-    train_parser.add_argument("--wandb-entity", type=str, default=None)
-
-    # ------------------------------------------------------------------ #
-    # eval                                                                 #
-    # ------------------------------------------------------------------ #
-    eval_parser = subparsers.add_parser("eval", help="Evaluate trained agent")
-    eval_parser.add_argument("--experiment-name", type=str, required=True)
-    eval_parser.add_argument(
-        "--experiments-dir",
-        type=Path,
-        default=Path("experiments"),
-        help="Root dir the experiment was logged under (default: experiments/)",
-    )
-    eval_parser.add_argument("--num-eval-episodes", type=int, default=10)
-    eval_parser.add_argument("--checkpoint", type=str, default=None)
-    eval_parser.add_argument("--max-episode-steps", type=int, default=500)
-    eval_parser.add_argument("--device", type=str, default="cpu")
-
-    # ------------------------------------------------------------------ #
-    # render                                                               #
-    # ------------------------------------------------------------------ #
-    render_parser = subparsers.add_parser("render", help="Render episode to plot")
-    render_parser.add_argument("--experiment-name", type=str, required=True)
-    render_parser.add_argument(
-        "--experiments-dir",
-        type=Path,
-        default=Path("experiments"),
-        help="Root dir the experiment was logged under (default: experiments/)",
-    )
-    render_parser.add_argument("--output", type=str, default=None)
-    render_parser.add_argument("--checkpoint", type=str, default=None)
-    render_parser.add_argument("--max-episode-steps", type=int, default=500)
-
-    args = parser.parse_args()
-
-    if args.command == "train-neurogym":
-        train_neurogym(args)
-    elif args.command == "eval":
-        evaluate(args)
-    elif args.command == "render":
-        render_to_plot(args)
+    cfg = tyro.cli(Command, description="MPN A2C training, evaluation, and rendering.")
+    if isinstance(cfg, TrainConfig):
+        train_neurogym(cfg)
+    elif isinstance(cfg, EvalConfig):
+        evaluate(cfg)
     else:
-        parser.print_help()
+        render_to_plot(cfg)
 
 
 if __name__ == "__main__":
