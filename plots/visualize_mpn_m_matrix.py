@@ -24,8 +24,8 @@ import neurogym  # noqa: F401
 import numpy as np
 import torch
 
-from envs import TrialEndWrapper
-from nn.mpn import MPN
+from mpn_rl.envs import TrialEndWrapper
+from mpn_rl.nn.mpn import MPN
 
 
 class _ActorCriticNet(torch.nn.Module):

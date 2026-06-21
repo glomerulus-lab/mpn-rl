@@ -17,9 +17,9 @@ from typing import Annotated, Union
 
 import tyro
 
-from commands.eval import EvalConfig, evaluate
-from commands.render import RenderConfig, render_to_plot
-from commands.train import TrainConfig, train_neurogym
+from mpn_rl.commands.eval import EvalConfig, evaluate
+from mpn_rl.commands.render import RenderConfig, render_to_plot
+from mpn_rl.commands.train import TrainConfig, train_neurogym
 
 Command = Union[
     Annotated[TrainConfig, tyro.conf.subcommand("train-neurogym")],

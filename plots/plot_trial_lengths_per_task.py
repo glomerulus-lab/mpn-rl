@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import neurogym as ngym
 import numpy as np
 
-from neurogym_wrapper import NeuroGymInfoWrapper
+from mpn_rl.neurogym_wrapper import NeuroGymInfoWrapper
 
 OUTPUT = sys.argv[1] if len(sys.argv) > 1 else "trial_lengths_per_task.png"
 N_TRIALS = 500

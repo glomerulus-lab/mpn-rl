@@ -20,8 +20,7 @@ import neurogym as ngym
 import numpy as np
 import torch
 
-sys.path.insert(0, "/research/harris/joe/mpn-rl")
-from models.actor_critic import ActorCriticNet
+from mpn_rl.models.actor_critic import ActorCriticNet
 
 TAG = sys.argv[1] if len(sys.argv) > 1 else "ng-sweep-v1"
 OUTPUT = sys.argv[2] if len(sys.argv) > 2 else "id_mpn_curve.png"

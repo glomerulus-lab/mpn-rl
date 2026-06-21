@@ -14,12 +14,12 @@ import tqdm
 import tyro
 import wandb
 
-import temporal_order_env  # noqa: F401 — registers TemporalOrder-v0 / TemporalOrder10-v0 / TemporalOrder20-v0
-from envs import TrialEndWrapper
-from evaluation import _evaluate_actorcritic
-from model_utils import ExperimentManager, get_device
-from models.actor_critic import ActorCriticNet
-from oracle_agents import get_oracle_reward
+import mpn_rl.temporal_order_env  # noqa: F401 — registers TemporalOrder-v0 / TemporalOrder10-v0 / TemporalOrder20-v0
+from mpn_rl.envs import TrialEndWrapper
+from mpn_rl.evaluation import _evaluate_actorcritic
+from mpn_rl.model_utils import ExperimentManager, get_device
+from mpn_rl.models.actor_critic import ActorCriticNet
+from mpn_rl.oracle_agents import get_oracle_reward
 
 
 def _compute_returns_episode(rewards, dones, next_value, gamma):

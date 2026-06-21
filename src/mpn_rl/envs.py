@@ -3,8 +3,8 @@
 import gymnasium
 import neurogym  # noqa: F401 — registers NeuroGym environments
 
-import temporal_order_env  # noqa: F401 — registers TemporalOrder-v0 / TemporalOrder10-v0 / TemporalOrder20-v0
-from models.actor_critic import ActorCriticNet
+import mpn_rl.temporal_order_env  # noqa: F401 — registers TemporalOrder-v0 / TemporalOrder10-v0 / TemporalOrder20-v0
+from mpn_rl.models.actor_critic import ActorCriticNet
 
 
 class TrialEndWrapper(gymnasium.Wrapper):

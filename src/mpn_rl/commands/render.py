@@ -8,8 +8,8 @@ import torch
 import tqdm
 import tyro
 
-from envs import _create_env_from_config, _load_model_from_config
-from model_utils import ExperimentManager
+from mpn_rl.envs import _create_env_from_config, _load_model_from_config
+from mpn_rl.model_utils import ExperimentManager
 
 
 @dataclass

@@ -3,7 +3,7 @@
 import torch
 import torch.nn as nn
 
-from nn.mpn import MPN
+from mpn_rl.nn.mpn import MPN
 
 
 class ActorCriticNet(nn.Module):

@@ -14,7 +14,7 @@ paper environments:
 
 Usage
 -----
-    from oracle_agents import evaluate_oracle
+    from mpn_rl.oracle_agents import evaluate_oracle
 
     oracle_reward = evaluate_oracle("GoNogo-v0", n_episodes=100,
                                     max_steps=10_000)

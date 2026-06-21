@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 import neurogym as ngym
 import numpy as np
 
-from neurogym_wrapper import NeuroGymInfoWrapper
+from mpn_rl.neurogym_wrapper import NeuroGymInfoWrapper
 
 ENV_NAME = "GoNogo-v0"
 

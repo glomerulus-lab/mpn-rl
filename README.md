@@ -116,11 +116,11 @@ python query_experiments.py compare --model-type mpn
 ## Key Files
 
 - **`main_a2c.py`**: CLI entry point — train, eval, render
-- **`nn/mpn.py`**: MPN layer with Hebbian plasticity
+- **`src/mpn_rl/nn/mpn.py`**: MPN layer with Hebbian plasticity
 - **`custom_envs.py`**: Custom RL environments (IntervalTiming1D, IntervalDisc1D, DelayMatchSample)
-- **`temporal_order_env.py`**: TemporalOrder environment family
-- **`model_utils.py`**: ExperimentManager, checkpointing, SQLite metrics
-- **`oracle_agents.py`**: Oracle baselines for all supported environments
+- **`src/mpn_rl/temporal_order_env.py`**: TemporalOrder environment family
+- **`src/mpn_rl/model_utils.py`**: ExperimentManager, checkpointing, SQLite metrics
+- **`src/mpn_rl/oracle_agents.py`**: Oracle baselines for all supported environments
 - **`query_experiments.py`**: Live DuckDB queries over experiment output files
 - **`plots/`**: Plotting scripts for rewards, sweeps, trial lengths
 

@@ -18,10 +18,9 @@ import torch
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-sys.path.insert(0, str(Path(__file__).parent))
-from envs import _create_env_from_config
-from evaluation import _evaluate_actorcritic
-from models.actor_critic import ActorCriticNet
+from mpn_rl.envs import _create_env_from_config
+from mpn_rl.evaluation import _evaluate_actorcritic
+from mpn_rl.models.actor_critic import ActorCriticNet
 
 OUTPUT = sys.argv[1] if len(sys.argv) > 1 else "eval_table.png"
 TAG = "ng-sweep-v1"

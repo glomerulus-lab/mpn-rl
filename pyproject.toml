@@ -23,20 +23,10 @@ dependencies = [
 ]
 
 [tool.setuptools]
-packages = ["commands", "models", "nn"]
-py-modules = [
-    "check_reward_timing",
-    "compare_models",
-    "envs",
-    "evaluation",
-    "main_a2c",
-    "model_utils",
-    "neurogym_wrapper",
-    "oracle_agents",
-    "query_experiments",
-    "temporal_order_env",
-    "test_all_envs",
-]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [dependency-groups]
 dev = [
@@ -71,17 +61,10 @@ ignore_missing_imports = true
 exclude = [
     '^\.uv-cache/',
     '^\.venv/',
-    '^commands/',
+    '^src/mpn_rl/commands/',
     'check_reward_timing.py',
     'compare_models.py',
-    'envs.py',
-    'evaluation.py',
     'main_a2c.py',
-    'model_utils.py',
-    'models/actor_critic.py',
-    'neurogym_wrapper.py',
-    'nn/mpn.py',
-    'oracle_agents.py',
     'plots/generate_table_images.py',
     'plots/plot_custom_sweep_bar.py',
     'plots/plot_custom_sweep_curves.py',
@@ -95,7 +78,14 @@ exclude = [
     'plots/plot_trial_lengths_per_task.py',
     'plots/visualize_mpn_m_matrix.py',
     'query_experiments.py',
-    'temporal_order_env.py',
+    'src/mpn_rl/envs.py',
+    'src/mpn_rl/evaluation.py',
+    'src/mpn_rl/model_utils.py',
+    'src/mpn_rl/models/actor_critic.py',
+    'src/mpn_rl/neurogym_wrapper.py',
+    'src/mpn_rl/nn/mpn.py',
+    'src/mpn_rl/oracle_agents.py',
+    'src/mpn_rl/temporal_order_env.py',
     'test_all_envs.py',
 ]
 
