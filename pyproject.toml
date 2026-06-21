@@ -35,6 +35,18 @@ dev = [
     "pytest>=8.4.2",
 ]
 
+# Pin torch to a CUDA 12.x build. The PyPI default is +cu130 (CUDA 13), which
+# only runs on the pool's 13.x-driver GPU nodes (the RTX 4090s); a cu126 build
+# runs on every GPU node — 12.4 nodes via CUDA minor-version forward-compat and
+# 13.x nodes via backward driver compat.
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu126" }
+
 [tool.ruff]
 target-version = "py313"
 extend-exclude = [".uv-cache"]

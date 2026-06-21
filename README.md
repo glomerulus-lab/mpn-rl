@@ -33,21 +33,10 @@ h = activation(b + W·(M + 1)·x)
 ## Installation
 
 ```bash
-# Clone the repository
 git clone <repository-url>
 cd mpn-rl
-
-# Create virtual environment and install dependencies
-uv venv
+./setup.sh
 source .venv/bin/activate
-uv pip install -e .
-```
-
-Or with pip:
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e .
 ```
 
 ## Quick Start

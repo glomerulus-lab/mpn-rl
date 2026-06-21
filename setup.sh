@@ -8,11 +8,10 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 UV_CACHE_DIR="${SCRIPT_DIR}/.uv-cache"
 
-echo "Creating virtual environment..."
-uv venv "${SCRIPT_DIR}/.venv"
-
 echo "Installing dependencies (cache: ${UV_CACHE_DIR})..."
-UV_CACHE_DIR="${UV_CACHE_DIR}" uv pip install -e "${SCRIPT_DIR}"
+# uv sync honors [tool.uv.sources] (the cu126 torch pin) and writes uv.lock;
+# `uv pip install` ignores sources and would pull the default +cu130 build.
+UV_CACHE_DIR="${UV_CACHE_DIR}" uv sync --project "${SCRIPT_DIR}"
 
 echo ""
 echo "Done. Activate with:"
