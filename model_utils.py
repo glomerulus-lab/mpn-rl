@@ -36,14 +36,15 @@ def get_device(device_str="cpu"):
 
     device = torch.device(device_str)
 
-    if device.type == "cuda" and torch.cuda.is_available():
+    if device.type == "cuda":
+        if not torch.cuda.is_available():
+            raise RuntimeError(
+                f"CUDA device '{device_str}' requested but no GPU is available."
+            )
         print(f"Using GPU: {torch.cuda.get_device_name(device.index or 0)}")
         print(
             f"GPU Memory: {torch.cuda.get_device_properties(device.index or 0).total_memory / 1e9:.2f} GB"
         )
-    elif device.type == "cuda":
-        print("Warning: GPU requested but not available, falling back to CPU")
-        device = torch.device("cpu")
     else:
         print("Using CPU")
 
