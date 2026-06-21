@@ -127,7 +127,7 @@ for _, row in best_df.iterrows():
     model.load_state_dict(ckpt["model_state_dict"])
 
     print(f"Evaluating {model_type:12s} on {env_name}...")
-    mean_r, std_r = _evaluate_actorcritic(
+    mean_r, std_r, _ = _evaluate_actorcritic(
         model,
         lambda cfg=config: _create_env_from_config(cfg),
         NUM_EPISODES,

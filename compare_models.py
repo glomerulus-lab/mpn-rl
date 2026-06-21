@@ -24,22 +24,14 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 import neurogym  # noqa: F401 — registers neurogym environments
 import numpy as np
 import torch
-from tensordict.nn import TensorDictModule as Mod, TensorDictSequential as Seq
-from torchrl.envs import (
-    Compose,
-    ExplorationType,
-    InitTracker,
-    StepCounter,
-    TransformedEnv,
-    set_exploration_type,
-)
-from torchrl.envs.libs.gym import GymEnv
-from torchrl.modules import MLP, LSTMModule, QValueModule
 
 import temporal_order_env  # noqa: F401 — registers TemporalOrder-v0 / TemporalOrder10-v0 / TemporalOrder20-v0
+from main_a2c import (
+    _create_env_from_config,
+    _evaluate_actorcritic,
+    _load_model_from_config,
+)
 from model_utils import ExperimentManager
-from mpn_torchrl_module import MPNModule
-from rnn_module import RNNModule
 
 AVAILABLE_METRICS = [
     "cumulative_reward",
@@ -63,6 +55,15 @@ EXCLUDED_HPARAM_KEYS = {
     "frames_per_batch",
     "grad_clip",
     "epsilon_end",
+    # Run metadata / logging config injected by main_a2c (not hyperparameters)
+    "algorithm",
+    "created_at",
+    "schema_version",
+    "experiments_dir",
+    "env_config",
+    "wandb",
+    "wandb_entity",
+    "wandb_project",
     # Already fixed table columns
     "model_type",
     "num_layers",
@@ -130,142 +131,6 @@ def detect_varying_hyperparameters(configs: Dict[str, Dict]) -> List[str]:
     return varying
 
 
-def create_eval_env(env_name: str, device: torch.device) -> TransformedEnv:
-    """Create a TorchRL environment for evaluation."""
-    env = TransformedEnv(
-        GymEnv(env_name, device=device),
-        Compose(
-            StepCounter(),
-            InitTracker(),
-        ),
-    )
-    return env
-
-
-def build_mpn_policy(env: TransformedEnv, config: Dict, device: torch.device) -> Seq:
-    """Build MPN policy architecture matching training setup."""
-    hidden_dim = config["hidden_dim"]
-    num_layers = config.get("num_layers", 1)
-    activation = config.get("activation", "tanh")
-    freeze_plasticity = config.get("model_type") == "mpn-frozen"
-
-    obs_dim = env.observation_spec["observation"].shape[-1]
-    action_dim = env.action_spec.space.n
-
-    layers = []
-    for layer_idx in range(num_layers):
-        in_key = "observation" if layer_idx == 0 else f"embed_{layer_idx - 1}"
-        out_key = f"embed_{layer_idx}"
-
-        in_keys = [in_key, f"recurrent_state_{layer_idx}"]
-        out_keys = [out_key, ("next", f"recurrent_state_{layer_idx}")]
-
-        mpn_layer = MPNModule(
-            input_size=obs_dim if layer_idx == 0 else hidden_dim,
-            hidden_size=hidden_dim,
-            activation=activation,
-            freeze_plasticity=freeze_plasticity,
-            device=device,
-            in_keys=in_keys,
-            out_keys=out_keys,
-        )
-        layers.append(mpn_layer)
-        env.append_transform(mpn_layer.make_tensordict_primer())
-
-    recurrent_module = Seq(*layers)
-
-    mlp = MLP(
-        out_features=action_dim,
-        num_cells=[hidden_dim],
-        device=device,
-    )
-    mlp[-1].bias.data.fill_(0.0)
-    mlp_module = Mod(
-        mlp, in_keys=[f"embed_{num_layers - 1}"], out_keys=["action_value"]
-    )
-
-    qval = QValueModule(spec=env.action_spec)
-
-    policy = Seq(recurrent_module, mlp_module, qval)
-    return policy
-
-
-def build_rnn_policy(env: TransformedEnv, config: Dict, device: torch.device) -> Seq:
-    """Build RNN policy architecture matching training setup."""
-    hidden_dim = config["hidden_dim"]
-    num_layers = config.get("num_layers", 1)
-    activation = config.get("activation", "tanh")
-
-    obs_dim = env.observation_spec["observation"].shape[-1]
-    action_dim = env.action_spec.space.n
-
-    rnn_module = RNNModule(
-        input_size=obs_dim,
-        hidden_size=hidden_dim,
-        num_layers=num_layers,
-        nonlinearity=activation,
-        device=device,
-        in_key="observation",
-        out_key=f"embed_{num_layers - 1}",
-    )
-    env.append_transform(rnn_module.make_tensordict_primer())
-
-    # Wrap in Seq to match training structure
-    recurrent_module = Seq(rnn_module)
-
-    mlp = MLP(
-        out_features=action_dim,
-        num_cells=[hidden_dim],
-        device=device,
-    )
-    mlp[-1].bias.data.fill_(0.0)
-    mlp_module = Mod(
-        mlp, in_keys=[f"embed_{num_layers - 1}"], out_keys=["action_value"]
-    )
-
-    qval = QValueModule(spec=env.action_spec)
-
-    policy = Seq(recurrent_module, mlp_module, qval)
-    return policy
-
-
-def build_lstm_policy(env: TransformedEnv, config: Dict, device: torch.device) -> Seq:
-    """Build LSTM policy architecture matching training setup."""
-    hidden_dim = config["hidden_dim"]
-    num_layers = config.get("num_layers", 1)
-
-    obs_dim = env.observation_spec["observation"].shape[-1]
-    action_dim = env.action_spec.space.n
-
-    lstm_module = LSTMModule(
-        input_size=obs_dim,
-        hidden_size=hidden_dim,
-        num_layers=num_layers,
-        device=device,
-        in_key="observation",
-        out_key=f"embed_{num_layers - 1}",
-    )
-    env.append_transform(lstm_module.make_tensordict_primer())
-
-    # Wrap in Seq to match training structure
-    recurrent_module = Seq(lstm_module)
-
-    mlp = MLP(
-        out_features=action_dim,
-        num_cells=[hidden_dim],
-        device=device,
-    )
-    mlp[-1].bias.data.fill_(0.0)
-    mlp_module = Mod(
-        mlp, in_keys=[f"embed_{num_layers - 1}"], out_keys=["action_value"]
-    )
-
-    qval = QValueModule(spec=env.action_spec)
-
-    policy = Seq(recurrent_module, mlp_module, qval)
-    return policy
-
-
 def count_parameters(model: torch.nn.Module) -> int:
     """Count total trainable parameters in a model."""
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -273,136 +138,82 @@ def count_parameters(model: torch.nn.Module) -> int:
 
 def load_model_from_experiment(
     experiments_dir: str | Path, experiment_name: str, device: torch.device
-) -> Tuple[Seq, TransformedEnv, Dict, str]:
+) -> Tuple[torch.nn.Module, Dict, str]:
     """
-    Load a trained model from an experiment.
+    Load a trained ActorCriticNet from an experiment.
 
     Returns:
-        Tuple of (policy, env, config, model_type)
+        Tuple of (model, config, model_type)
     """
     exp_manager = ExperimentManager(experiments_dir, experiment_name)
     config = exp_manager.load_config()
-
     model_type = config.get("model_type", "mpn")
-    env_name = config["env_name"]
 
-    # Create fresh environment
-    env = create_eval_env(env_name, device)
-
-    # Build policy based on type
-    if model_type == "rnn":
-        policy = build_rnn_policy(env, config, device)
-    elif model_type == "lstm":
-        policy = build_lstm_policy(env, config, device)
-    else:
-        policy = build_mpn_policy(env, config, device)
-
-    # Load checkpoint
     checkpoint_path = exp_manager.checkpoint_dir / "best_model.pt"
     if not checkpoint_path.exists():
         raise FileNotFoundError(
             f"No best_model.pt found for experiment '{experiment_name}'"
         )
 
-    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
-    policy.load_state_dict(checkpoint["model_state_dict"])
-    policy.eval()
+    model = _load_model_from_config(config, device)
+    exp_manager.load_model(model, checkpoint_name="best_model.pt", device=str(device))
+    model.eval()
 
-    return policy, env, config, model_type
-
-
-def seed_env(env: TransformedEnv, seed: int) -> None:
-    """Properly seed a TorchRL TransformedEnv and its underlying environment."""
-    torch.manual_seed(seed)
-    np.random.seed(seed)
-    # Access underlying gym environment and seed it directly
-    # TransformedEnv -> GymEnv -> gym.Env
-    try:
-        base_env = env.base_env
-        if hasattr(base_env, "_env"):
-            # GymEnv wraps the actual gym environment in _env
-            gym_env = base_env._env
-            if hasattr(gym_env, "seed"):
-                gym_env.seed(seed)
-            if hasattr(gym_env, "np_random"):
-                gym_env.np_random = np.random.default_rng(seed)
-    except Exception:
-        pass  # Fall back to just using reset(seed=seed)
+    return model, config, model_type
 
 
-def evaluate_episode_torchrl(
-    policy: Seq, env: TransformedEnv, seed: Optional[int] = None, max_steps: int = 500
-) -> float:
-    """Run a single evaluation episode using TorchRL."""
-    if seed is not None:
-        seed_env(env, seed)
+def evaluate_model_rewards(
+    model: torch.nn.Module,
+    config: Dict,
+    seeds: List[int],
+    max_steps: int,
+    device: torch.device,
+) -> List[float]:
+    """Greedily roll out the model once per seed; return per-seed rewards.
 
-    total_reward = 0.0
-
-    with set_exploration_type(ExplorationType.DETERMINISTIC), torch.no_grad():
-        # Pass seed to environment reset for reproducibility
-        td = env.reset(seed=seed)
-
-        for step in range(max_steps):
-            td = policy(td)
-            td = env.step(td)
-
-            reward = td["next", "reward"].item()
-            total_reward += reward
-
-            done = td["next", "done"].item() if "done" in td["next"].keys() else False
-            terminated = (
-                td["next", "terminated"].item()
-                if "terminated" in td["next"].keys()
-                else False
-            )
-
-            if done or terminated:
-                break
-            else:
-                td = env.step_mdp(td)
-
-    return total_reward
-
-
-def evaluate_random_episode_torchrl(
-    env: TransformedEnv, seed: Optional[int] = None, max_steps: int = 500
-) -> float:
-    """Run a single episode with random actions using TorchRL."""
-    if seed is not None:
-        seed_env(env, seed)
-
-    total_reward = 0.0
-    action_dim = env.action_spec.space.n
-    device = env.device
-
-    # Pass seed to environment reset for reproducibility
-    td = env.reset(seed=seed)
-
-    for step in range(max_steps):
-        action = torch.zeros(env.action_spec.shape, device=device)
-        action_choice = np.random.randint(0, action_dim)
-        action[action_choice] = 1.0
-
-        td["action"] = action
-        td = env.step(td)
-
-        reward = td["next", "reward"].item()
-        total_reward += reward
-
-        done = td["next", "done"].item() if "done" in td["next"].keys() else False
-        terminated = (
-            td["next", "terminated"].item()
-            if "terminated" in td["next"].keys()
-            else False
+    Each seed is run as a single-episode evaluation so the returned list aligns
+    one-to-one with ``seeds`` (needed for worst_vs_best / per-seed reporting).
+    """
+    rewards = []
+    for seed in seeds:
+        _, _, ep_rewards = _evaluate_actorcritic(
+            model,
+            lambda cfg=config: _create_env_from_config(cfg, device=device),
+            num_episodes=1,
+            max_steps=max_steps,
+            seed=seed,
+            device=device,
         )
+        rewards.append(ep_rewards[0])
+    return rewards
 
-        if done or terminated:
-            break
-        else:
-            td = env.step_mdp(td)
 
-    return total_reward
+def evaluate_random_rewards(
+    config: Dict, seeds: List[int], max_steps: int
+) -> List[float]:
+    """Roll out random actions once per seed; return per-seed rewards.
+
+    Mirrors ``evaluate_model_rewards`` seeding (``env.unwrapped.rng =
+    RandomState(seed)``) so the random baseline faces the same trial sequence as
+    the trained models.
+    """
+    rewards = []
+    for seed in seeds:
+        env = _create_env_from_config(config)
+        env.unwrapped.rng = np.random.RandomState(seed)
+        action_rng = np.random.RandomState(seed)
+        action_dim = env.action_space.n
+        obs, _ = env.reset()
+        total = 0.0
+        for _ in range(max_steps):
+            action = int(action_rng.randint(0, action_dim))
+            obs, reward, terminated, truncated, _ = env.step(action)
+            total += reward
+            if terminated or truncated:
+                break
+        rewards.append(total)
+        env.close()
+    return rewards
 
 
 def validate_compatibility(configs: Dict[str, Dict]) -> Tuple[bool, str]:
@@ -483,19 +294,17 @@ def compare_models(
     print("=" * 60)
 
     # Load all experiments first to validate compatibility
-    policies = {}
-    envs = {}
+    models = {}
     configs = {}
     model_types = {}
 
     for exp_name in experiment_names:
         print(f"\nLoading: {exp_name}")
         try:
-            policy, env, config, model_type = load_model_from_experiment(
+            model, config, model_type = load_model_from_experiment(
                 experiments_dir, exp_name, device
             )
-            policies[exp_name] = policy
-            envs[exp_name] = env
+            models[exp_name] = model
             configs[exp_name] = config
             model_types[exp_name] = model_type
             print(f"  Type: {model_type.upper()}, Env: {config['env_name']}")
@@ -510,7 +319,8 @@ def compare_models(
 
     print("\nModels compatible. Evaluating...")
 
-    env_name = configs[experiment_names[0]]["env_name"]
+    ref_config = configs[experiment_names[0]]
+    env_name = ref_config["env_name"]
 
     # Detect varying hyperparameters if not provided
     if varying_hparams is None:
@@ -541,14 +351,8 @@ def compare_models(
 
     random_rewards = []
     if needs_episodes:
-        # Create a fresh env for random evaluation
-        random_env = create_eval_env(env_name, device)
-
-        for seed in eval_seeds:
-            reward = evaluate_random_episode_torchrl(
-                random_env, seed=seed, max_steps=max_steps
-            )
-            random_rewards.append(reward)
+        random_rewards = evaluate_random_rewards(ref_config, eval_seeds, max_steps)
+        for seed, reward in zip(eval_seeds, random_rewards):
             print(f"  Seed {seed:4d}: Reward = {reward:8.2f}")
 
     random_metrics = compute_metrics(random_rewards, None, eval_seeds, metrics)
@@ -588,21 +392,19 @@ def compare_models(
         print(f"Model: {exp_name}")
         print(f"{'=' * 60}")
 
-        policy = policies[exp_name]
-        env = envs[exp_name]
+        model = models[exp_name]
         config = configs[exp_name]
 
         episode_rewards = []
 
         if needs_episodes:
-            for seed in eval_seeds:
-                reward = evaluate_episode_torchrl(
-                    policy, env, seed=seed, max_steps=max_steps
-                )
-                episode_rewards.append(reward)
+            episode_rewards = evaluate_model_rewards(
+                model, config, eval_seeds, max_steps, device
+            )
+            for seed, reward in zip(eval_seeds, episode_rewards):
                 print(f"  Seed {seed:4d}: Reward = {reward:8.2f}")
 
-        model_metrics = compute_metrics(episode_rewards, policy, eval_seeds, metrics)
+        model_metrics = compute_metrics(episode_rewards, model, eval_seeds, metrics)
         model_metrics["model_type"] = model_types[exp_name]
         model_metrics["hidden_dim"] = config["hidden_dim"]
         model_metrics["num_layers"] = config.get("num_layers", 1)

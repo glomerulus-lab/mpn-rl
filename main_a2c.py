@@ -250,7 +250,10 @@ def _compute_returns_episode(rewards, dones, next_value, gamma):
 
 
 def _evaluate_actorcritic(model, env_factory, num_episodes, max_steps, seed, device):
-    """Evaluate ActorCriticNet greedily on a fresh env from env_factory."""
+    """Evaluate ActorCriticNet greedily on a fresh env from env_factory.
+
+    Returns (mean_reward, std_reward, per_episode_rewards).
+    """
     model.eval()
     rewards = []
     with torch.no_grad():
@@ -272,7 +275,7 @@ def _evaluate_actorcritic(model, env_factory, num_episodes, max_steps, seed, dev
             rewards.append(ep_reward)
             env.close()
     model.train()
-    return float(np.mean(rewards)), float(np.std(rewards))
+    return float(np.mean(rewards)), float(np.std(rewards)), rewards
 
 
 def train_neurogym(args):
@@ -491,7 +494,7 @@ def train_neurogym(args):
             last_eval_episode = episode
             eval_seed = int(_eval_rng.integers(0, 2**31))
 
-            eval_reward, eval_reward_std = _evaluate_actorcritic(
+            eval_reward, eval_reward_std, _ = _evaluate_actorcritic(
                 model,
                 make_train_env,
                 args.num_eval_episodes,
