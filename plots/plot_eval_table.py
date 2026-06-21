@@ -19,7 +19,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 sys.path.insert(0, str(Path(__file__).parent))
-from main_a2c import _create_env_from_config, _evaluate_actorcritic
+from envs import _create_env_from_config
+from evaluation import _evaluate_actorcritic
 from models.actor_critic import ActorCriticNet
 
 OUTPUT = sys.argv[1] if len(sys.argv) > 1 else "eval_table.png"

@@ -21,7 +21,6 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Annotated, Literal, Union
 
-import gymnasium
 import matplotlib.pyplot as plt
 import neurogym  # noqa: F401 — registers NeuroGym environments
 import numpy as np
@@ -32,86 +31,17 @@ import tyro
 import wandb
 
 import temporal_order_env  # noqa: F401 — registers TemporalOrder-v0 / TemporalOrder10-v0 / TemporalOrder20-v0
+from envs import (
+    TrialEndWrapper,
+    _create_env_from_config,
+    _load_model_from_config,
+)
 
 # Local imports
+from evaluation import _evaluate_actorcritic
 from model_utils import ExperimentManager, get_device
 from models.actor_critic import ActorCriticNet
 from oracle_agents import get_oracle_reward
-
-
-class TrialEndWrapper(gymnasium.Wrapper):
-    """End the episode when a new trial starts; normalize correct-withhold reward to +1."""
-
-    def step(self, action):
-        obs, reward, terminated, truncated, info = self.env.step(action)
-        if info.get("new_trial", False):
-            terminated = True
-            # Correct No-go (withheld correctly) gives 0 reward by default; normalize to +1
-            if info.get("performance") == 1 and reward == 0.0:
-                reward = 1.0
-        return obs, reward, terminated, truncated, info
-
-
-def compute_returns(
-    rewards: torch.Tensor,
-    dones: torch.Tensor,
-    bootstrap_value: torch.Tensor,
-    gamma: float,
-) -> torch.Tensor:
-    """Compute discounted returns with episode-boundary handling.
-
-    Args:
-        rewards:         [T] reward at each step
-        dones:           [T] float done flag (1.0 = episode ended after this step)
-        bootstrap_value: scalar — V(s_T) * (1 - done_T), used to bootstrap
-                         the last partial episode in the batch
-        gamma:           discount factor
-
-    Returns:
-        returns: [T] discounted return for each step
-    """
-    returns = []
-    R = bootstrap_value
-    for t in reversed(range(len(rewards))):
-        R = rewards[t] + gamma * R * (1.0 - dones[t])
-        returns.insert(0, R)
-    return torch.stack(returns)
-
-
-def _create_env_from_config(config, device="cpu", max_episode_steps=500):
-    """Rebuild the environment used during training from a saved config dict."""
-    env_name = config["env_name"]
-    env = neurogym.make(env_name, **config.get("env_kwargs", {}))
-    for key in ("fail", "miss"):
-        if key in env.unwrapped.rewards:
-            env.unwrapped.rewards[key] = -1.0
-    return TrialEndWrapper(env)
-
-
-def _load_model_from_config(config, device):
-    """Reconstruct an ActorCriticNet from a saved experiment config."""
-    env = _create_env_from_config(config, device)
-    input_dim = env.observation_space.shape[0]
-    action_dim = env.action_space.n
-    env.close()
-    model = ActorCriticNet(
-        input_dim=input_dim,
-        action_dim=action_dim,
-        hidden_dim=config.get("hidden_dim", 128),
-        core_type=config.get("model_type", "lstm"),
-        activation=config.get("activation", "tanh"),
-        lambda_max=config.get("lambda_max", 0.99),
-        eta_init=config.get("eta_init", 0.01),
-        lambda_init=config.get("lambda_init", 0.99),
-        num_layers=config.get("num_layers", 1),
-        mpn_bias=config.get("mpn_bias", True),
-    ).to(device)
-    return model
-
-
-# ---------------------------------------------------------------------------
-# Episode-based training matching the reference A2C loop
-# ---------------------------------------------------------------------------
 
 
 def _compute_returns_episode(rewards, dones, next_value, gamma):
@@ -122,40 +52,6 @@ def _compute_returns_episode(rewards, dones, next_value, gamma):
         R = rewards[step] + gamma * R * (1 - dones[step])
         returns.insert(0, R)
     return returns
-
-
-# ---------------------------------------------------------------------------
-# Episode-based BPTT training on NeuroGym environments
-# ---------------------------------------------------------------------------
-
-
-def _evaluate_actorcritic(model, env_factory, num_episodes, max_steps, seed, device):
-    """Evaluate ActorCriticNet greedily on a fresh env from env_factory.
-
-    Returns (mean_reward, std_reward, per_episode_rewards).
-    """
-    model.eval()
-    rewards = []
-    with torch.no_grad():
-        for ep in range(num_episodes):
-            env = env_factory()
-            if seed is not None:
-                env.unwrapped.rng = np.random.RandomState(seed + ep)
-            obs, _ = env.reset()
-            h = None
-            ep_reward = 0.0
-            for _ in range(max_steps):
-                obs_t = torch.FloatTensor(obs).unsqueeze(0).to(device)
-                policy_dist, _, h = model(obs_t, h)
-                action = int(policy_dist.argmax(-1).item())
-                obs, reward, terminated, truncated, _ = env.step(action)
-                ep_reward += reward
-                if terminated or truncated:
-                    break
-            rewards.append(ep_reward)
-            env.close()
-    model.train()
-    return float(np.mean(rewards)), float(np.std(rewards)), rewards
 
 
 @dataclass

@@ -24,7 +24,7 @@ import neurogym  # noqa: F401
 import numpy as np
 import torch
 
-from main_a2c import TrialEndWrapper
+from envs import TrialEndWrapper
 from nn.mpn import MPN
 
 

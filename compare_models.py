@@ -26,11 +26,8 @@ import numpy as np
 import torch
 
 import temporal_order_env  # noqa: F401 — registers TemporalOrder-v0 / TemporalOrder10-v0 / TemporalOrder20-v0
-from main_a2c import (
-    _create_env_from_config,
-    _evaluate_actorcritic,
-    _load_model_from_config,
-)
+from envs import _create_env_from_config, _load_model_from_config
+from evaluation import _evaluate_actorcritic
 from model_utils import ExperimentManager
 
 AVAILABLE_METRICS = [

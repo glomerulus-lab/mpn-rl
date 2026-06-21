@@ -25,14 +25,16 @@ dependencies = [
 [tool.setuptools]
 packages = ["models", "nn"]
 py-modules = [
+    "check_reward_timing",
+    "compare_models",
+    "envs",
+    "evaluation",
     "main_a2c",
     "model_utils",
-    "oracle_agents",
-    "temporal_order_env",
     "neurogym_wrapper",
+    "oracle_agents",
     "query_experiments",
-    "compare_models",
-    "check_reward_timing",
+    "temporal_order_env",
     "test_all_envs",
 ]
 
@@ -71,6 +73,8 @@ exclude = [
     '^\.venv/',
     'check_reward_timing.py',
     'compare_models.py',
+    'envs.py',
+    'evaluation.py',
     'main_a2c.py',
     'model_utils.py',
     'models/actor_critic.py',
