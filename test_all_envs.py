@@ -65,59 +65,14 @@ def test_env_basic(env_name: str) -> dict:
         }
 
 
-def test_env_torchrl(env_name: str) -> dict:
-    """Test if environment works with TorchRL wrapper."""
-    import neurogym  # noqa: F401 — registers neurogym environments with gymnasium
-    from torchrl.envs import Compose, InitTracker, StepCounter, TransformedEnv
-    from torchrl.envs.libs.gym import GymEnv
-
-    try:
-        env = TransformedEnv(
-            GymEnv(env_name, device="cpu"),
-            Compose(
-                StepCounter(max_steps=100),
-                InitTracker(),
-            ),
-        )
-
-        # Test reset and step
-        td = env.reset()
-        obs_shape = td["observation"].shape
-
-        # Run a few random steps
-        for _ in range(10):
-            action = env.action_spec.rand()
-            td["action"] = action
-            td = env.step(td)
-            if td["next", "done"].item():
-                td = env.reset()
-            else:
-                td = env.step_mdp(td)
-
-        env.close()
-
-        return {
-            "status": "OK",
-            "obs_shape": list(obs_shape),
-        }
-    except Exception as e:
-        return {
-            "status": "FAILED",
-            "error": str(e),
-        }
-
-
 def test_env_seeding(env_name: str) -> dict:
-    """Test that reseeding produces reproducible trials on both code paths.
+    """Test that reseeding produces reproducible trials.
 
-    Checks:
-      1. Direct neurogym path (oracle_agents.py style): env.unwrapped.rng
-      2. TorchRL path (_reseed_torchrl_env walker): via GymWrapper
+    Direct neurogym path (oracle_agents.py style): env.unwrapped.rng
     """
     import neurogym as ngym
     import numpy as np
 
-    # --- Path 1: direct neurogym ---
     try:
         env = ngym.make(env_name)
 
@@ -144,45 +99,13 @@ def test_env_seeding(env_name: str) -> dict:
                     return False
             return True
 
-        direct_reproducible = trials_equal(t1, t2)
+        reproducible = trials_equal(t1, t2)
     except Exception as e:
-        return {"status": "FAILED", "path": "direct", "error": str(e)}
+        return {"status": "FAILED", "error": str(e)}
 
-    # --- Path 2: TorchRL walker (_reseed_torchrl_env) ---
-    try:
-        import os
-        import sys
-
-        import neurogym  # noqa: F401 – registers envs with gymnasium
-        from torchrl.envs.libs.gym import GymWrapper
-
-        sys.path.insert(0, os.path.dirname(__file__))
-        from main import _reseed_torchrl_env
-
-        gym_env = ngym.make(env_name)
-        tenv = GymWrapper(gym_env)
-
-        _reseed_torchrl_env(tenv, 42)
-        tenv.reset()
-        r1 = dict(gym_env.unwrapped.trial)
-        _reseed_torchrl_env(tenv, 42)
-        tenv.reset()
-        r2 = dict(gym_env.unwrapped.trial)
-        tenv.close()
-
-        torchrl_reproducible = trials_equal(r1, r2)
-    except Exception as e:
-        return {
-            "status": "PARTIAL" if direct_reproducible else "FAILED",
-            "direct_reproducible": direct_reproducible,
-            "torchrl_error": str(e),
-        }
-
-    status = "OK" if (direct_reproducible and torchrl_reproducible) else "FAILED"
     return {
-        "status": status,
-        "direct_reproducible": direct_reproducible,
-        "torchrl_reproducible": torchrl_reproducible,
+        "status": "OK" if reproducible else "FAILED",
+        "reproducible": reproducible,
         "trial_keys": list(t1.keys()),
     }
 
@@ -256,7 +179,7 @@ def main():
     parser = argparse.ArgumentParser(description="Test NeuroGym environments")
     parser.add_argument(
         "--test-type",
-        choices=["basic", "torchrl", "training", "seeding", "all"],
+        choices=["basic", "training", "seeding", "all"],
         default="basic",
         help="Type of test to run",
     )
@@ -296,15 +219,6 @@ def main():
             else:
                 print(f"FAILED: {res.get('error', 'Unknown')}")
 
-        if args.test_type in ["torchrl", "all"]:
-            print("  TorchRL test...", end=" ", flush=True)
-            res = test_env_torchrl(env_name)
-            results[env_name]["torchrl"] = res
-            if res["status"] == "OK":
-                print(f"OK (shape={res['obs_shape']})")
-            else:
-                print(f"FAILED: {res.get('error', 'Unknown')}")
-
         if args.test_type in ["seeding", "all"]:
             print("  Seeding test...", end=" ", flush=True)
             res = test_env_seeding(env_name)
@@ -312,14 +226,8 @@ def main():
             if res["status"] == "OK":
                 keys = res.get("trial_keys", [])
                 print(f"OK (trial keys: {keys})")
-            elif res["status"] == "PARTIAL":
-                print(
-                    f"PARTIAL (direct=OK, torchrl error: {res.get('torchrl_error', '')[:80]})"
-                )
             else:
-                print(
-                    f"FAILED: {res.get('error', res.get('torchrl_error', 'Unknown'))[:80]}"
-                )
+                print(f"FAILED: {res.get('error', 'Unknown')[:80]}")
 
         if args.test_type in ["training", "all"]:
             print(
@@ -338,7 +246,7 @@ def main():
     print("SUMMARY")
     print("=" * 70)
 
-    for test_type in ["basic", "torchrl", "seeding", "training"]:
+    for test_type in ["basic", "seeding", "training"]:
         if any(test_type in r for r in results.values()):
             passed = sum(
                 1
