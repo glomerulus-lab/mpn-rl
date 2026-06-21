@@ -23,7 +23,7 @@ dependencies = [
 ]
 
 [tool.setuptools]
-packages = ["models", "nn"]
+packages = ["commands", "models", "nn"]
 py-modules = [
     "check_reward_timing",
     "compare_models",
@@ -71,6 +71,7 @@ ignore_missing_imports = true
 exclude = [
     '^\.uv-cache/',
     '^\.venv/',
+    '^commands/',
     'check_reward_timing.py',
     'compare_models.py',
     'envs.py',
