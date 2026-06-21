@@ -29,6 +29,27 @@ Experience = namedtuple(
 Trial = namedtuple("Trial", ["obs_list", "action_list", "reward_list", "done_list"])
 
 
+def get_device(device_str="cpu"):
+    """Get PyTorch device."""
+    if device_str == "gpu":
+        device_str = "cuda"
+
+    device = torch.device(device_str)
+
+    if device.type == "cuda" and torch.cuda.is_available():
+        print(f"Using GPU: {torch.cuda.get_device_name(device.index or 0)}")
+        print(
+            f"GPU Memory: {torch.cuda.get_device_properties(device.index or 0).total_memory / 1e9:.2f} GB"
+        )
+    elif device.type == "cuda":
+        print("Warning: GPU requested but not available, falling back to CPU")
+        device = torch.device("cpu")
+    else:
+        print("Using CPU")
+
+    return device
+
+
 class ReplayBuffer:
     """Simple replay buffer for DQN."""
 
