@@ -291,34 +291,3 @@ class ExperimentManager:
 
     def __repr__(self):
         return f"ExperimentManager('{self.experiment_name}', dir='{self.exp_dir}')"
-
-
-if __name__ == "__main__":
-    print("Testing ExperimentManager...")
-
-    # Test random name generation
-    print("\nRandom experiment names:")
-    for _ in range(5):
-        print(f"  - {generate_experiment_name()}")
-
-    # Test experiment manager
-    print("\nCreating experiment...")
-    exp = ExperimentManager("/tmp/mpn-smoketest", "test-experiment")
-    print(f"Created: {exp}")
-    print(f"Experiment dir: {exp.exp_dir}")
-
-    # Test config save/load
-    print("\nTesting config save/load...")
-    config = {
-        "env_name": "CartPole-v1",
-        "hidden_dim": 64,
-        "eta": 0.05,
-        "lambda_decay": 0.9,
-        "num_episodes": 500,
-    }
-    exp.save_config(config)
-    loaded_config = exp.load_config()
-    print(f"Loaded config: {loaded_config}")
-
-    print("\nExperimentManager test completed!")
-    print(f"Check the '{exp.exp_dir}' directory to see generated files")
