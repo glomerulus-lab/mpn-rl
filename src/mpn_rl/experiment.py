@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 import torch
+import torch.nn as nn
 
 # Word lists for random experiment names
 ADJECTIVES = [
@@ -153,7 +154,7 @@ class ExperimentManager:
         self.config_path = self.exp_dir / "config.json"
         self.metrics_path = self.exp_dir / "metrics.jsonl"
 
-    def save_config(self, config: Dict[str, Any]):
+    def save_config(self, config: Dict[str, Any]) -> None:
         """Save experiment configuration."""
         created_at = datetime.now().isoformat()
         config = {**config, "schema_version": SCHEMA_VERSION, "created_at": created_at}
@@ -166,15 +167,16 @@ class ExperimentManager:
         if not self.config_path.exists():
             raise FileNotFoundError(f"Config not found: {self.config_path}")
         with open(self.config_path, "r") as f:
-            return json.load(f)
+            config: Dict[str, Any] = json.load(f)
+        return config
 
     def save_model(
         self,
-        model,
+        model: nn.Module,
         optimizer: Optional[torch.optim.Optimizer] = None,
         checkpoint_name: str = "model.pt",
-        metadata: Optional[Dict] = None,
-    ):
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """
         Save model checkpoint.
 
@@ -199,11 +201,11 @@ class ExperimentManager:
 
     def load_model(
         self,
-        model,
+        model: nn.Module,
         checkpoint_name: str = "best_model.pt",
         optimizer: Optional[torch.optim.Optimizer] = None,
         device: str = "cpu",
-    ) -> Dict:
+    ) -> Dict[str, Any]:
         """
         Load model checkpoint.
 
@@ -230,7 +232,8 @@ class ExperimentManager:
             optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 
         print(f"Loaded checkpoint from {checkpoint_path}")
-        return checkpoint.get("metadata", {})
+        metadata: Dict[str, Any] = checkpoint.get("metadata", {})
+        return metadata
 
     def append_training_history(
         self,
@@ -239,10 +242,10 @@ class ExperimentManager:
         length: int,
         loss: float,
         epsilon: float,
-        oracle_reward: float = None,
-        pct_oracle: float = None,
-        episode: int = None,
-    ):
+        oracle_reward: Optional[float] = None,
+        pct_oracle: Optional[float] = None,
+        episode: Optional[int] = None,
+    ) -> None:
         """Append a single eval step to metrics.jsonl."""
         with open(self.metrics_path, "a") as f:
             f.write(
@@ -266,5 +269,5 @@ class ExperimentManager:
                 + "\n"
             )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"ExperimentManager('{self.experiment_name}', dir='{self.exp_dir}')"
