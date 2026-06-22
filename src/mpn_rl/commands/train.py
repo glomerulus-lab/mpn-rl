@@ -1,7 +1,6 @@
 import json
 import math
 import random
-import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Annotated, Literal
@@ -81,7 +80,6 @@ class TrainConfig(BaseModel, protected_namespaces=()):
     num_eval_episodes: int = 10
     device: str = "cpu"
     tag: str | None = None
-    experiment_id: str | None = None
     mpn_bias: Annotated[
         bool,
         tyro.conf.arg(
@@ -133,11 +131,6 @@ def train_neurogym(args: TrainConfig):
     print("Training with A2C + BPTT on NeuroGym")
     print("=" * 60)
 
-    if args.experiment_id is None:
-        args.experiment_id = str(uuid.uuid4())[:8]
-    if args.experiment_name is not None:
-        args.experiment_name = f"{args.experiment_name}-{args.experiment_id}"
-
     exp_manager = ExperimentManager(args.experiments_dir, args.experiment_name)
     print(f"Experiment: {exp_manager.experiment_name}")
     print(f"Directory:  {exp_manager.exp_dir}\n")
@@ -148,6 +141,8 @@ def train_neurogym(args: TrainConfig):
             env_kwargs = json.load(f)
 
     config = args.model_dump()
+    config["experiment_name"] = exp_manager.experiment_name
+    config["experiment_id"] = exp_manager.experiment_id
     config["experiments_dir"] = str(
         args.experiments_dir
     )  # Path -> str for JSON + wandb

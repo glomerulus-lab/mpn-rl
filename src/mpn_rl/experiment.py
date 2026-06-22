@@ -6,108 +6,16 @@ Handles:
 - Experiment directory structure
 - Configuration management
 - Training history tracking
-- Random experiment name generation
 """
 
 import json
-import random
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 import torch
 import torch.nn as nn
-
-# Word lists for random experiment names
-ADJECTIVES = [
-    "swift",
-    "brave",
-    "bright",
-    "calm",
-    "clever",
-    "bold",
-    "eager",
-    "fair",
-    "gentle",
-    "happy",
-    "keen",
-    "lively",
-    "merry",
-    "noble",
-    "polite",
-    "proud",
-    "quiet",
-    "rapid",
-    "sincere",
-    "tender",
-    "vivid",
-    "wise",
-    "zealous",
-    "agile",
-    "cosmic",
-    "digital",
-    "electric",
-    "frozen",
-    "golden",
-    "lunar",
-    "mystic",
-    "neural",
-    "quantum",
-    "radiant",
-    "silver",
-    "stellar",
-    "turbo",
-    "ultra",
-]
-
-NOUNS = [
-    "tiger",
-    "eagle",
-    "falcon",
-    "dragon",
-    "phoenix",
-    "wolf",
-    "bear",
-    "lion",
-    "hawk",
-    "raven",
-    "shark",
-    "panther",
-    "cobra",
-    "viper",
-    "mantis",
-    "spider",
-    "scorpion",
-    "leopard",
-    "cheetah",
-    "jaguar",
-    "orca",
-    "dolphin",
-    "owl",
-    "condor",
-    "lynx",
-    "puma",
-    "fox",
-    "badger",
-    "otter",
-    "weasel",
-    "mink",
-    "neuron",
-    "synapse",
-    "cortex",
-    "network",
-    "circuit",
-    "matrix",
-    "tensor",
-]
-
-
-def generate_experiment_name() -> str:
-    """Generate a random experiment name like 'brave-tiger' or 'swift-eagle'."""
-    adj = random.choice(ADJECTIVES)
-    noun = random.choice(NOUNS)
-    return f"{adj}-{noun}"
-
+import uuid6
 
 SCHEMA_VERSION = 1
 
@@ -136,10 +44,11 @@ class ExperimentManager:
         """
         Args:
             experiments_dir: Root directory for all experiments (default: experiments/)
-            experiment_name: Name of experiment (generates random if None)
+            experiment_name: Experiment directory name (defaults to the generated id)
         """
+        self.experiment_id = str(uuid6.uuid7())
         if experiment_name is None:
-            experiment_name = generate_experiment_name()
+            experiment_name = self.experiment_id
 
         self.experiment_name = experiment_name
         self.exp_dir = Path(experiments_dir) / experiment_name

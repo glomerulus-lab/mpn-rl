@@ -1,7 +1,7 @@
 import copy
 import json
-import re
 import tempfile
+import uuid
 
 import torch
 
@@ -14,15 +14,21 @@ def test_init_creates_checkpoint_and_plot_dirs() -> None:
         assert manager.checkpoint_dir.is_dir() and manager.plot_dir.is_dir()
 
 
-def test_init_generates_name_when_none() -> None:
-    with tempfile.TemporaryDirectory() as directory:
-        name = ExperimentManager(directory, None).experiment_name
-    assert re.fullmatch(r"[a-z]+-[a-z]+", name) is not None
-
-
 def test_init_uses_given_name_verbatim() -> None:
     with tempfile.TemporaryDirectory() as directory:
         assert ExperimentManager(directory, "exp").experiment_name == "exp"
+
+
+def test_init_uses_id_as_name_when_none() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        manager = ExperimentManager(directory, None)
+    assert manager.experiment_name == manager.experiment_id
+
+
+def test_init_generates_uuid7_id() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        experiment_id = ExperimentManager(directory, "exp").experiment_id
+    assert uuid.UUID(experiment_id).version == 7
 
 
 def test_save_config_roundtrips() -> None:
@@ -94,7 +100,7 @@ def test_append_training_history_writes_row() -> None:
         )
         rows = manager.metrics_path.read_text().splitlines()
     assert json.loads(rows[0]) == {
-        "experiment_name": "exp",
+        "experiment_name": manager.experiment_name,
         "frame": 100,
         "episode": 3,
         "reward": 1.5,
