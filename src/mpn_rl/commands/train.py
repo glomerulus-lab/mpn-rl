@@ -17,9 +17,10 @@ import yaml
 from pydantic import BaseModel
 
 import mpn_rl.temporal_order_env  # noqa: F401 — registers TemporalOrder-v0 / TemporalOrder10-v0 / TemporalOrder20-v0
+from mpn_rl.device import get_device
 from mpn_rl.envs import TrialEndWrapper
 from mpn_rl.evaluation import _evaluate_actorcritic
-from mpn_rl.model_utils import ExperimentManager, get_device
+from mpn_rl.experiment import ExperimentManager
 from mpn_rl.models.actor_critic import ActorCriticNet
 from mpn_rl.oracle_agents import get_oracle_reward
 

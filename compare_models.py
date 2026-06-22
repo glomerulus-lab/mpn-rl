@@ -28,7 +28,7 @@ import torch
 import mpn_rl.temporal_order_env  # noqa: F401 — registers TemporalOrder-v0 / TemporalOrder10-v0 / TemporalOrder20-v0
 from mpn_rl.envs import _create_env_from_config, _load_model_from_config
 from mpn_rl.evaluation import _evaluate_actorcritic
-from mpn_rl.model_utils import ExperimentManager
+from mpn_rl.experiment import ExperimentManager
 
 AVAILABLE_METRICS = [
     "cumulative_reward",

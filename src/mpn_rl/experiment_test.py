@@ -5,7 +5,7 @@ import tempfile
 
 import torch
 
-from mpn_rl.model_utils import SCHEMA_VERSION, ExperimentManager
+from mpn_rl.experiment import SCHEMA_VERSION, ExperimentManager
 
 
 def test_init_creates_checkpoint_and_plot_dirs() -> None:
