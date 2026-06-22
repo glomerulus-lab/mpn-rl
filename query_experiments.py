@@ -20,21 +20,28 @@ from pathlib import Path
 import duckdb
 import pandas as pd
 
+from mpn_rl.runs import find_run_files
+
 # ---------------------------------------------------------------------------
 # Live DuckDB connection (reads files directly, always up-to-date)
 # ---------------------------------------------------------------------------
 
 
-def _live_con(experiments_dir: Path) -> duckdb.DuckDBPyConnection:
+def _sql_list(files: list[Path]) -> str:
+    return "[" + ", ".join("'" + str(f) + "'" for f in files) + "]"
+
+
+def _live_con(experiments_dir: Path | None) -> duckdb.DuckDBPyConnection:
     """Return an in-memory DuckDB with views over live experiment files.
 
-    - training_history: scanned from <experiments_dir>/*/metrics.jsonl
-    - experiments:      scanned from <experiments_dir>/*/config.json
+    Scans config.json/metrics.jsonl for every run — ad-hoc runs under
+    experiments/ and sweep runs under results/<name>/experiments/ — or a single
+    flat experiments_dir when one is given.
     """
     con = duckdb.connect()
 
-    metrics_files = list(experiments_dir.glob("*/metrics.jsonl"))
-    config_files = list(experiments_dir.glob("*/config.json"))
+    metrics_files = find_run_files("metrics.jsonl", experiments_dir)
+    config_files = find_run_files("config.json", experiments_dir)
 
     if metrics_files:
         con.execute(f"""
@@ -42,7 +49,7 @@ def _live_con(experiments_dir: Path) -> duckdb.DuckDBPyConnection:
             SELECT experiment_name, frame, reward, length, loss, epsilon,
                    oracle_reward, pct_oracle
             FROM read_ndjson(
-                '{experiments_dir}/*/metrics.jsonl',
+                {_sql_list(metrics_files)},
                 columns = {{
                     experiment_name: 'VARCHAR',
                     frame:           'INTEGER',
@@ -71,7 +78,7 @@ def _live_con(experiments_dir: Path) -> duckdb.DuckDBPyConnection:
             CREATE VIEW experiments AS
             SELECT *
             FROM read_json_auto(
-                '{experiments_dir}/*/config.json',
+                {_sql_list(config_files)},
                 ignore_errors = true
             )
         """)
@@ -84,7 +91,7 @@ def _live_con(experiments_dir: Path) -> duckdb.DuckDBPyConnection:
     return con
 
 
-def _query(sql: str, experiments_dir: Path) -> pd.DataFrame:
+def _query(sql: str, experiments_dir: Path | None) -> pd.DataFrame:
     con = _live_con(experiments_dir)
     return con.execute(sql).fetchdf()
 
@@ -180,7 +187,7 @@ def cmd_today(args):
     today = datetime.now().strftime("%Y-%m-%d")
     rows = []
 
-    for config_path in sorted(args.experiments_dir.glob("*/config.json")):
+    for config_path in sorted(find_run_files("config.json", args.experiments_dir)):
         with open(config_path) as f:
             config = json.load(f)
 
@@ -293,8 +300,9 @@ def main():
     parser.add_argument(
         "--experiments-dir",
         type=Path,
-        default=Path("experiments"),
-        help="Root directory to scan for experiment config/metrics files",
+        default=None,
+        help="Scan a single experiments dir; default scans "
+        "experiments/ and results/*/experiments/",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
