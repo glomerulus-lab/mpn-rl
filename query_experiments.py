@@ -25,25 +25,25 @@ import pandas as pd
 # ---------------------------------------------------------------------------
 
 
-def _live_con() -> duckdb.DuckDBPyConnection:
+def _live_con(experiments_dir: Path) -> duckdb.DuckDBPyConnection:
     """Return an in-memory DuckDB with views over live experiment files.
 
-    - training_history: scanned from experiments/*/metrics.jsonl
-    - experiments:      scanned from experiments/*/config.json
+    - training_history: scanned from <experiments_dir>/*/metrics.jsonl
+    - experiments:      scanned from <experiments_dir>/*/config.json
     """
     con = duckdb.connect()
 
-    metrics_files = list(Path("experiments").glob("*/metrics.jsonl"))
-    config_files = list(Path("experiments").glob("*/config.json"))
+    metrics_files = list(experiments_dir.glob("*/metrics.jsonl"))
+    config_files = list(experiments_dir.glob("*/config.json"))
 
     if metrics_files:
-        con.execute("""
+        con.execute(f"""
             CREATE VIEW training_history AS
             SELECT experiment_name, frame, reward, length, loss, epsilon,
                    oracle_reward, pct_oracle
             FROM read_ndjson(
-                'experiments/*/metrics.jsonl',
-                columns = {
+                '{experiments_dir}/*/metrics.jsonl',
+                columns = {{
                     experiment_name: 'VARCHAR',
                     frame:           'INTEGER',
                     reward:          'DOUBLE',
@@ -52,7 +52,7 @@ def _live_con() -> duckdb.DuckDBPyConnection:
                     epsilon:         'DOUBLE',
                     oracle_reward:   'DOUBLE',
                     pct_oracle:      'DOUBLE'
-                },
+                }},
                 ignore_errors = true
             )
         """)
@@ -67,11 +67,11 @@ def _live_con() -> duckdb.DuckDBPyConnection:
         """)
 
     if config_files:
-        con.execute("""
+        con.execute(f"""
             CREATE VIEW experiments AS
             SELECT *
             FROM read_json_auto(
-                'experiments/*/config.json',
+                '{experiments_dir}/*/config.json',
                 ignore_errors = true
             )
         """)
@@ -84,8 +84,8 @@ def _live_con() -> duckdb.DuckDBPyConnection:
     return con
 
 
-def _query(sql: str) -> pd.DataFrame:
-    con = _live_con()
+def _query(sql: str, experiments_dir: Path) -> pd.DataFrame:
+    con = _live_con(experiments_dir)
     return con.execute(sql).fetchdf()
 
 
@@ -95,7 +95,8 @@ def _query(sql: str) -> pd.DataFrame:
 
 
 def cmd_list(args):
-    df = _query("""
+    df = _query(
+        """
         SELECT
             e.experiment_name,
             COALESCE(e.algorithm, 'dqn') AS algorithm,
@@ -108,7 +109,9 @@ def cmd_list(args):
         LEFT JOIN training_history h USING (experiment_name)
         GROUP BY e.experiment_name, e.algorithm, e.model_type, e.env_name, e.learning_rate
         ORDER BY MAX(h.frame) DESC NULLS LAST
-    """)
+    """,
+        args.experiments_dir,
+    )
     print(df.to_string(index=False))
 
 
@@ -119,7 +122,8 @@ def cmd_best(args):
     if args.algorithm:
         filters.append(f"COALESCE(e.algorithm, 'dqn') = '{args.algorithm}'")
     where = ("WHERE " + " AND ".join(filters)) if filters else ""
-    df = _query(f"""
+    df = _query(
+        f"""
         SELECT
             e.experiment_name,
             COALESCE(e.algorithm, 'dqn') AS algorithm,
@@ -134,7 +138,9 @@ def cmd_best(args):
         GROUP BY e.experiment_name, e.algorithm, e.model_type, e.env_name, e.learning_rate
         ORDER BY best_reward DESC
         LIMIT {args.limit}
-    """)
+    """,
+        args.experiments_dir,
+    )
     print(df.to_string(index=False))
 
 
@@ -148,7 +154,8 @@ def cmd_compare(args):
         filters.append(f"COALESCE(e.algorithm, 'dqn') = '{args.algorithm}'")
     where = ("WHERE " + " AND ".join(filters)) if filters else ""
 
-    df = _query(f"""
+    df = _query(
+        f"""
         SELECT
             COALESCE(e.algorithm, 'dqn')              AS algorithm,
             e.model_type,
@@ -163,7 +170,9 @@ def cmd_compare(args):
         {where}
         GROUP BY e.algorithm, e.model_type, e.env_name, e.learning_rate, e.hidden_dim
         ORDER BY e.env_name, avg_reward DESC
-    """)
+    """,
+        args.experiments_dir,
+    )
     print(df.to_string(index=False))
 
 
@@ -171,7 +180,7 @@ def cmd_today(args):
     today = datetime.now().strftime("%Y-%m-%d")
     rows = []
 
-    for config_path in sorted(Path("experiments").glob("*/config.json")):
+    for config_path in sorted(args.experiments_dir.glob("*/config.json")):
         with open(config_path) as f:
             config = json.load(f)
 
@@ -268,7 +277,7 @@ def cmd_today(args):
 
 
 def cmd_sql(args):
-    df = _query(args.query)
+    df = _query(args.query, args.experiments_dir)
     print(df.to_string(index=False))
 
 
@@ -280,6 +289,12 @@ def cmd_sql(args):
 def main():
     parser = argparse.ArgumentParser(
         description="Query MPN-RL experiments (live file scanning)"
+    )
+    parser.add_argument(
+        "--experiments-dir",
+        type=Path,
+        default=Path("experiments"),
+        help="Root directory to scan for experiment config/metrics files",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
