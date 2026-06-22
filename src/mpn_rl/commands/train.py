@@ -36,9 +36,10 @@ def _compute_returns_episode(rewards, dones, next_value, gamma):
 
 # protected_namespaces=() silences pydantic's warning about the `model_type`
 # field colliding with its `model_` protected namespace, which we don't use.
-class TrainConfig(BaseModel, protected_namespaces=()):
+class TrainConfig(BaseModel, protected_namespaces=(), extra="forbid"):
     """Train on a NeuroGym environment with episode-based A2C and full BPTT."""
 
+    sweep_name: str | None = None
     experiment_name: str | None = None
     experiments_dir: Annotated[
         Path,
