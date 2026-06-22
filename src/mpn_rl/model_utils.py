@@ -695,8 +695,6 @@ class ExperimentManager:
         │   ├── best_model.pt
         │   ├── checkpoint_100.pt
         │   └── final_model.pt
-        ├── videos/
-        │   └── episode_*.gif
         └── plots/
             └── training_curves.png
     """
@@ -719,10 +717,9 @@ class ExperimentManager:
 
         # Create directory structure
         self.checkpoint_dir = self.exp_dir / "checkpoints"
-        self.video_dir = self.exp_dir / "videos"
         self.plot_dir = self.exp_dir / "plots"
 
-        for dir_path in [self.checkpoint_dir, self.video_dir, self.plot_dir]:
+        for dir_path in [self.checkpoint_dir, self.plot_dir]:
             dir_path.mkdir(parents=True, exist_ok=True)
 
         self.config_path = self.exp_dir / "config.json"
