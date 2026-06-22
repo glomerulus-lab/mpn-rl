@@ -2,7 +2,7 @@ import json
 import math
 import random
 import uuid
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -13,6 +13,8 @@ import torch.nn.functional as F
 import tqdm
 import tyro
 import wandb
+import yaml
+from pydantic import BaseModel
 
 import mpn_rl.temporal_order_env  # noqa: F401 — registers TemporalOrder-v0 / TemporalOrder10-v0 / TemporalOrder20-v0
 from mpn_rl.envs import TrialEndWrapper
@@ -32,8 +34,9 @@ def _compute_returns_episode(rewards, dones, next_value, gamma):
     return returns
 
 
-@dataclass
-class TrainConfig:
+# protected_namespaces=() silences pydantic's warning about the `model_type`
+# field colliding with its `model_` protected namespace, which we don't use.
+class TrainConfig(BaseModel, protected_namespaces=()):
     """Train on a NeuroGym environment with episode-based A2C and full BPTT."""
 
     experiment_name: str | None = None
@@ -90,6 +93,34 @@ class TrainConfig:
     wandb_entity: str | None = None
 
 
+@dataclass
+class TrainCommand:
+    config: Annotated[
+        Path | None,
+        tyro.conf.arg(
+            help="YAML file of TrainConfig fields; CLI flags override its values"
+        ),
+    ] = None
+    train_config: tyro.conf.OmitArgPrefixes[TrainConfig] = field(
+        default_factory=TrainConfig
+    )
+
+
+def load_train_config(config_path: Path | None) -> TrainConfig:
+    if config_path is None:
+        return TrainConfig()
+    with open(config_path) as f:
+        return TrainConfig(**yaml.safe_load(f))
+
+
+def resolve_train_config(args: list[str]) -> TrainConfig:
+    first = tyro.cli(TrainCommand, args=args)
+    default = TrainCommand(
+        config=first.config, train_config=load_train_config(first.config)
+    )
+    return tyro.cli(TrainCommand, args=args, default=default).train_config
+
+
 def train_neurogym(args: TrainConfig):
     """Train on NeuroGym env using episode-based A2C with full BPTT.
 
@@ -115,7 +146,7 @@ def train_neurogym(args: TrainConfig):
         with open(args.env_config) as f:
             env_kwargs = json.load(f)
 
-    config = asdict(args)
+    config = args.model_dump()
     config["experiments_dir"] = str(
         args.experiments_dir
     )  # Path -> str for JSON + wandb

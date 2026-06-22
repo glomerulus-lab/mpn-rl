@@ -13,25 +13,31 @@ Examples:
     python main_a2c.py render --experiment-name my-agent --output render.png
 """
 
+import sys
 from typing import Annotated, Union
 
 import tyro
 
 from mpn_rl.commands.eval import EvalConfig, evaluate
 from mpn_rl.commands.render import RenderConfig, render_to_plot
-from mpn_rl.commands.train import TrainConfig, train_neurogym
-
-Command = Union[
-    Annotated[TrainConfig, tyro.conf.subcommand("train-neurogym")],
-    Annotated[EvalConfig, tyro.conf.subcommand("eval")],
-    Annotated[RenderConfig, tyro.conf.subcommand("render")],
-]
+from mpn_rl.commands.train import TrainCommand, resolve_train_config, train_neurogym
 
 
 def main():
-    cfg = tyro.cli(Command, description="MPN A2C training, evaluation, and rendering.")
-    if isinstance(cfg, TrainConfig):
-        train_neurogym(cfg)
+    Command = Union[
+        Annotated[TrainCommand, tyro.conf.subcommand("train-neurogym")],
+        Annotated[EvalConfig, tyro.conf.subcommand("eval")],
+        Annotated[RenderConfig, tyro.conf.subcommand("render")],
+    ]
+    cfg = tyro.cli(
+        Command,
+        args=sys.argv[1:],
+        description="MPN A2C training, evaluation, and rendering.",
+    )
+    if isinstance(cfg, TrainCommand):
+        # sys.argv[1] is the "train-neurogym" subcommand token; resolve_train_config
+        # parses bare TrainCommand, so pass only the flags after it.
+        train_neurogym(resolve_train_config(sys.argv[2:]))
     elif isinstance(cfg, EvalConfig):
         evaluate(cfg)
     else:
