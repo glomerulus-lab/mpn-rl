@@ -13,21 +13,25 @@ from mpn_rl.git import git_revision
 _SNAPSHOT_IGNORE = shutil.ignore_patterns("__pycache__", "*.pyc", "*.swp", "*.egg-info")
 
 
+def _expand(value: Any) -> list[Any]:
+    if isinstance(value, dict):
+        keys = list(value)
+        return [
+            dict(zip(keys, combo))
+            for combo in itertools.product(*(_expand(v) for v in value.values()))
+        ]
+    if isinstance(value, list):
+        return [variant for element in value for variant in _expand(element)]
+    return [value]
+
+
 def experiments_for_sweep(
     sweep: dict[str, Any], sweep_name: str, results_dir: Path
 ) -> list[dict[str, Any]]:
-    swept = {k: v for k, v in sweep.items() if isinstance(v, list)}
-    fixed = {k: v for k, v in sweep.items() if not isinstance(v, list)}
     experiments_dir = results_dir / sweep_name / "experiments"
-    keys = list(swept)
     return [
-        {
-            **fixed,
-            **dict(zip(keys, combo)),
-            "experiments_dir": experiments_dir,
-            "sweep_name": sweep_name,
-        }
-        for combo in itertools.product(*(swept[k] for k in keys))
+        {**experiment, "experiments_dir": experiments_dir, "sweep_name": sweep_name}
+        for experiment in _expand(sweep)
     ]
 
 

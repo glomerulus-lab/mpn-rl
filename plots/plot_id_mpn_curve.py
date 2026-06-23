@@ -135,7 +135,7 @@ def load_model(exp_name):
         input_dim=env.observation_space.shape[0],
         action_dim=env.action_space.n,
         hidden_dim=cfg["hidden_dim"],
-        core_type=cfg["model_type"],
+        model_type=cfg["model_type"],
         activation=cfg.get("activation", "tanh"),
         lambda_max=cfg.get("lambda_max", 0.99),
         eta_init=cfg.get("eta_init", 0.01),

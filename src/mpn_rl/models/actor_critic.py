@@ -25,7 +25,7 @@ class ActorCriticNet(nn.Module):
         input_dim: int,
         action_dim: int,
         hidden_dim: int = 128,
-        core_type: str = "lstm",
+        model_type: str = "lstm",
         activation: str = "tanh",
         lambda_max: float = 0.99,
         eta_init: float = 0.01,
@@ -35,14 +35,14 @@ class ActorCriticNet(nn.Module):
         lstm_forget_bias: float = 0.0,
     ):
         super().__init__()
-        self.core_type = core_type
+        self.model_type = model_type
         self.num_layers = num_layers
 
-        if core_type == "rnn":
+        if model_type == "rnn":
             self.core = nn.RNN(
                 input_dim, hidden_dim, num_layers=num_layers, batch_first=True
             )
-        elif core_type == "lstm":
+        elif model_type == "lstm":
             self.core = nn.LSTM(
                 input_dim, hidden_dim, num_layers=num_layers, batch_first=True
             )
@@ -51,8 +51,8 @@ class ActorCriticNet(nn.Module):
                     if "bias" in name:
                         n = param.size(0)
                         param.data[n // 4 : n // 2].fill_(lstm_forget_bias)
-        elif core_type in ("mpn", "mpn-frozen"):
-            freeze = core_type == "mpn-frozen"
+        elif model_type in ("mpn", "mpn-frozen"):
+            freeze = model_type == "mpn-frozen"
             self.core = nn.ModuleList(
                 [
                     MPN(
@@ -69,7 +69,7 @@ class ActorCriticNet(nn.Module):
                 ]
             )
         else:
-            raise ValueError(f"Unknown core_type: {core_type!r}")
+            raise ValueError(f"Unknown model_type: {model_type!r}")
 
         self.postprocessor = nn.Sequential(nn.Linear(hidden_dim, 64), nn.ReLU())
         self.actor = nn.Sequential(
@@ -85,7 +85,7 @@ class ActorCriticNet(nn.Module):
         )
 
     def forward(self, x: torch.Tensor, h):
-        if self.core_type in ("rnn", "lstm"):
+        if self.model_type in ("rnn", "lstm"):
             out, h = self.core(x.unsqueeze(1), h)  # (batch, 1, hidden)
             out = out.squeeze(1)  # (batch, hidden)
         else:  # MPN / MPN-frozen — h is a list of M matrices, one per layer

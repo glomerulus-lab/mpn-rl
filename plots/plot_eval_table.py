@@ -114,7 +114,7 @@ for _, row in best_df.iterrows():
         input_dim=env_tmp.observation_space.shape[0],
         action_dim=env_tmp.action_space.n,
         hidden_dim=config.get("hidden_dim", 128),
-        core_type=config.get("model_type", "lstm"),
+        model_type=config.get("model_type", "lstm"),
         activation=config.get("activation", "tanh"),
         lambda_max=config.get("lambda_max", 0.99),
         eta_init=config.get("eta_init", 0.01),

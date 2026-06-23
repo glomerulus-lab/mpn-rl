@@ -10,7 +10,7 @@ env_name:
   - PerceptualDecisionMaking-v0
   - PerceptualDecisionMakingDelayResponse-v0
   - ProbabilisticReasoning-v0
-model_type: [mpn, lstm, rnn]
+model: [{model_type: mpn}, {model_type: lstm}, {model_type: rnn}]
 hidden_dim: 128
 num_layers: 1
 total_frames: 100000

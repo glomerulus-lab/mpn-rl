@@ -3,7 +3,7 @@ import math
 import random
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Union
 
 import neurogym  # noqa: F401 — registers NeuroGym environments
 import numpy as np
@@ -13,7 +13,7 @@ import tqdm
 import tyro
 import wandb
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 import mpn_rl
 import mpn_rl.temporal_order_env  # noqa: F401 — registers TemporalOrder-v0 / TemporalOrder10-v0 / TemporalOrder20-v0
@@ -37,7 +37,45 @@ def _compute_returns_episode(rewards, dones, next_value, gamma):
 
 # protected_namespaces=() silences pydantic's warning about the `model_type`
 # field colliding with its `model_` protected namespace, which we don't use.
-class TrainConfig(BaseModel, protected_namespaces=(), extra="forbid"):
+class ModelConfig(BaseModel, protected_namespaces=(), extra="forbid"):
+    pass
+
+
+class LSTMConfig(ModelConfig):
+    model_type: Literal["lstm"] = "lstm"
+
+
+class RNNConfig(ModelConfig):
+    model_type: Literal["rnn"] = "rnn"
+
+
+class MPNConfig(ModelConfig):
+    model_type: Literal["mpn"] = "mpn"
+    eta_init: float = 0.01
+    lambda_init: float = 0.99
+    lambda_max: float = 0.99
+    activation: Literal["relu", "tanh", "sigmoid"] = "tanh"
+    mpn_bias: bool = True
+
+
+class MPNFrozenConfig(ModelConfig):
+    model_type: Literal["mpn-frozen"] = "mpn-frozen"
+    activation: Literal["relu", "tanh", "sigmoid"] = "tanh"
+    mpn_bias: bool = True
+
+
+Model = Annotated[
+    Union[
+        Annotated[LSTMConfig, tyro.conf.subcommand("lstm")],
+        Annotated[RNNConfig, tyro.conf.subcommand("rnn")],
+        Annotated[MPNConfig, tyro.conf.subcommand("mpn")],
+        Annotated[MPNFrozenConfig, tyro.conf.subcommand("mpn-frozen")],
+    ],
+    Field(discriminator="model_type"),
+]
+
+
+class TrainConfig(BaseModel, extra="forbid"):
     """Train on a NeuroGym environment with episode-based A2C and full BPTT."""
 
     sweep_name: str | None = None
@@ -62,13 +100,9 @@ class TrainConfig(BaseModel, protected_namespaces=(), extra="forbid"):
     num_episodes: Annotated[
         int, tyro.conf.arg(help="Stop after N episodes (0 = use total_frames)")
     ] = 0
-    model_type: Literal["mpn", "mpn-frozen", "rnn", "lstm"] = "lstm"
     hidden_dim: int = 128
     num_layers: int = 1
-    activation: Literal["relu", "tanh", "sigmoid"] = "tanh"
-    lambda_max: float = 0.99
-    eta_init: float = 0.01
-    lambda_init: float = 0.99
+    model: Model = Field(default_factory=LSTMConfig)
     gamma: float = 0.98
     entropy_coef: float = 0.01
     value_coef: float = 1.0
@@ -82,13 +116,6 @@ class TrainConfig(BaseModel, protected_namespaces=(), extra="forbid"):
     num_eval_episodes: int = 10
     device: str = "cpu"
     tag: str | None = None
-    mpn_bias: Annotated[
-        bool,
-        tyro.conf.arg(
-            help="Use bias term in MPN hidden layer; --no-mpn-bias disables it "
-            "(correction W*(M+1) is kept)"
-        ),
-    ] = True
     wandb: bool = False
     wandb_project: str = "mpn-rl"
     wandb_entity: str | None = None
@@ -102,9 +129,9 @@ class TrainCommand:
             help="YAML file of TrainConfig fields; CLI flags override its values"
         ),
     ] = None
-    train_config: tyro.conf.OmitArgPrefixes[TrainConfig] = field(
-        default_factory=TrainConfig
-    )
+    train_config: tyro.conf.OmitSubcommandPrefixes[
+        tyro.conf.OmitArgPrefixes[TrainConfig]
+    ] = field(default_factory=TrainConfig)
 
 
 def load_train_config(config_path: Path | None) -> TrainConfig:
@@ -144,6 +171,8 @@ def train_neurogym(args: TrainConfig):
             env_kwargs = json.load(f)
 
     config = args.model_dump()
+    # Keep config.json flat: readers still expect top-level model fields.
+    config.update(config.pop("model"))
     config["experiment_name"] = exp_manager.experiment_name
     config["experiment_id"] = exp_manager.experiment_id
     config["experiments_dir"] = str(
@@ -193,7 +222,7 @@ def train_neurogym(args: TrainConfig):
 
     print(f"Environment:  {args.env_name}")
     print(f"Obs dim: {input_dim}, Action dim: {action_dim}")
-    print(f"Model: {args.model_type.upper()}, hidden_dim={args.hidden_dim}")
+    print(f"Model: {args.model.model_type.upper()}, hidden_dim={args.hidden_dim}")
     print(f"lr={args.learning_rate}, gamma={args.gamma}, value_coef={args.value_coef}")
     print(f"total_frames={args.total_frames}\n")
 
@@ -201,13 +230,8 @@ def train_neurogym(args: TrainConfig):
         input_dim=input_dim,
         action_dim=action_dim,
         hidden_dim=args.hidden_dim,
-        core_type=args.model_type,
-        activation=args.activation,
-        lambda_max=args.lambda_max,
-        eta_init=args.eta_init,
-        lambda_init=args.lambda_init,
         num_layers=args.num_layers,
-        mpn_bias=args.mpn_bias,
+        **args.model.model_dump(),
     ).to(device)
 
     optimizer = torch.optim.Adam(

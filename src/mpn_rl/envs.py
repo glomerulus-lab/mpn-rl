@@ -40,7 +40,7 @@ def _load_model_from_config(config, device):
         input_dim=input_dim,
         action_dim=action_dim,
         hidden_dim=config.get("hidden_dim", 128),
-        core_type=config.get("model_type", "lstm"),
+        model_type=config.get("model_type", "lstm"),
         activation=config.get("activation", "tanh"),
         lambda_max=config.get("lambda_max", 0.99),
         eta_init=config.get("eta_init", 0.01),
