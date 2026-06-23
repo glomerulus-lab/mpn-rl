@@ -15,6 +15,7 @@ import wandb
 import yaml
 from pydantic import BaseModel
 
+import mpn_rl
 import mpn_rl.temporal_order_env  # noqa: F401 — registers TemporalOrder-v0 / TemporalOrder10-v0 / TemporalOrder20-v0
 from mpn_rl.device import get_device
 from mpn_rl.envs import TrialEndWrapper
@@ -131,6 +132,7 @@ def train_neurogym(args: TrainConfig):
     print("=" * 60)
     print("Training with A2C + BPTT on NeuroGym")
     print("=" * 60)
+    print(f"Code:       {Path(mpn_rl.__file__).parent}")
 
     exp_manager = ExperimentManager(args.experiments_dir, args.experiment_name)
     print(f"Experiment: {exp_manager.experiment_name}")

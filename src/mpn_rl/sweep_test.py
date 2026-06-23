@@ -1,3 +1,5 @@
+import json
+import stat
 import tempfile
 from pathlib import Path
 
@@ -5,7 +7,7 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from mpn_rl.sweep import create_sweep, experiments_for_sweep
+from mpn_rl.sweep import create_sweep, experiments_for_sweep, snapshot_code
 
 
 def test_experiments_for_sweep_expands_grid() -> None:
@@ -110,7 +112,8 @@ def test_create_sweep_writes_condor_job() -> None:
         config_file.write_text("model_type: [mpn, lstm]\n")
         sweep_dir, _ = create_sweep(config_file, None, results_dir)
         job = (sweep_dir / "sweep.job").read_text()
-    assert "executable = condor/scripts/run_experiment.sh" in job
+        run_script = (sweep_dir / "code" / "run_experiment.sh").resolve()
+    assert f"executable = {run_script}" in job
     assert "initialdir =" in job
     assert f"output = {sweep_dir}/logs/{sweep_dir.name}-$INT(Process,%04d).out" in job
     assert f"Queue args from {sweep_dir}/args.txt" in job
@@ -142,3 +145,43 @@ def test_create_sweep_rejects_unknown_keys() -> None:
         config_file.write_text("bogus_key: 1\n")
         with pytest.raises(ValidationError):
             create_sweep(config_file, None, results_dir)
+
+
+def test_snapshot_code_copies_package_and_entrypoint() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        sweep_dir = Path(directory) / "mysweep"
+        sweep_dir.mkdir()
+        snapshot_code(sweep_dir)
+        code = sweep_dir / "code"
+        assert (code / "main_a2c.py").exists()
+        assert (code / "src" / "mpn_rl" / "__init__.py").exists()
+
+
+def test_snapshot_code_freezes_revision() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        sweep_dir = Path(directory) / "mysweep"
+        sweep_dir.mkdir()
+        snapshot_code(sweep_dir)
+        revision = json.loads(
+            (sweep_dir / "code" / "src" / "mpn_rl" / "REVISION").read_text()
+        )
+    assert set(revision) == {"commit", "dirty"}
+    assert revision["commit"]
+
+
+def test_snapshot_code_is_read_only() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        sweep_dir = Path(directory) / "mysweep"
+        sweep_dir.mkdir()
+        snapshot_code(sweep_dir)
+        train = sweep_dir / "code" / "src" / "mpn_rl" / "commands" / "train.py"
+        mode = train.stat().st_mode
+    assert stat.S_IMODE(mode) == 0o444
+
+
+def test_snapshot_code_excludes_pycache() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        sweep_dir = Path(directory) / "mysweep"
+        sweep_dir.mkdir()
+        snapshot_code(sweep_dir)
+        assert not list((sweep_dir / "code" / "src").rglob("__pycache__"))

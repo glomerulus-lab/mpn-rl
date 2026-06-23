@@ -1,10 +1,16 @@
 import itertools
+import json
+import shlex
+import shutil
 from pathlib import Path
 from typing import Any
 
 import yaml
 
 from mpn_rl.commands.train import TrainConfig
+from mpn_rl.git import git_revision
+
+_SNAPSHOT_IGNORE = shutil.ignore_patterns("__pycache__", "*.pyc", "*.swp", "*.egg-info")
 
 
 def experiments_for_sweep(
@@ -23,6 +29,37 @@ def experiments_for_sweep(
         }
         for combo in itertools.product(*(swept[k] for k in keys))
     ]
+
+
+def snapshot_code(sweep_dir: Path) -> Path:
+    """Freeze the code a sweep runs into an immutable, self-contained snapshot."""
+    code_dir = sweep_dir / "code"
+    shutil.copytree("src", code_dir / "src", ignore=_SNAPSHOT_IGNORE)
+    shutil.copy("main_a2c.py", code_dir / "main_a2c.py")
+
+    revision = code_dir / "src" / "mpn_rl" / "REVISION"
+    revision.write_text(json.dumps(git_revision()))
+
+    run_script = code_dir / "run_experiment.sh"
+    src = (code_dir / "src").resolve()
+    main = (code_dir / "main_a2c.py").resolve()
+    venv = (Path.cwd() / ".venv").resolve()
+    run_script.write_text(
+        "#!/bin/bash\n"
+        "set -e\n"
+        f"source {shlex.quote(str(venv))}/bin/activate\n"
+        f"exec env PYTHONPATH={shlex.quote(str(src))} \\\n"
+        f'  python {shlex.quote(str(main))} train-neurogym "$@"\n'
+    )
+    run_script.chmod(0o755)
+
+    # Make the snapshot read-only so an accidental edit-in-place can't silently
+    # reintroduce the multi-version bug. Files only — dirs stay writable so the
+    # sweep directory can still be removed with `rm -rf`.
+    for f in code_dir.rglob("*"):
+        if f.is_file():
+            f.chmod(f.stat().st_mode & ~0o222)
+    return run_script
 
 
 def create_sweep(
@@ -51,9 +88,10 @@ def create_sweep(
     (sweep_dir / "args.txt").write_text(args)
 
     (sweep_dir / "logs").mkdir()
+    run_script = snapshot_code(sweep_dir)
     sweep_job = (
         "universe = vanilla\n"
-        "executable = condor/scripts/run_experiment.sh\n"
+        f"executable = {run_script.resolve()}\n"
         f"initialdir = {Path.cwd()}\n"
         "request_cpus   = 2\n"
         "request_gpus   = 1\n"

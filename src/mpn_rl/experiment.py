@@ -17,6 +17,8 @@ import torch
 import torch.nn as nn
 import uuid6
 
+from mpn_rl.git import git_revision
+
 SCHEMA_VERSION = 1
 
 
@@ -66,7 +68,12 @@ class ExperimentManager:
     def save_config(self, config: Dict[str, Any]) -> None:
         """Save experiment configuration."""
         created_at = datetime.now().isoformat()
-        config = {**config, "schema_version": SCHEMA_VERSION, "created_at": created_at}
+        config = {
+            **config,
+            "schema_version": SCHEMA_VERSION,
+            "created_at": created_at,
+            "git": git_revision(),
+        }
         with open(self.config_path, "w") as f:
             json.dump(config, f, indent=2, default=str)
         print(f"Saved config to {self.config_path}")

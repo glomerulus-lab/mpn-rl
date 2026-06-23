@@ -41,7 +41,9 @@ def test_save_config_roundtrips() -> None:
         **config,
         "schema_version": SCHEMA_VERSION,
         "created_at": loaded["created_at"],
+        "git": loaded["git"],
     }
+    assert set(loaded["git"]) == {"commit", "dirty"}
 
 
 def test_save_model_roundtrips() -> None:

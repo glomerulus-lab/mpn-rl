@@ -83,6 +83,7 @@ ignore_missing_imports = true
 exclude = [
     '^\.uv-cache/',
     '^\.venv/',
+    '^results/',  # frozen code snapshots — duplicate the mpn_rl package
     '^src/mpn_rl/commands/',
     'check_reward_timing.py',
     'compare_models.py',
