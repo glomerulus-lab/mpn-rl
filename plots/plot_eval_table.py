@@ -21,9 +21,10 @@ import matplotlib.pyplot as plt
 from mpn_rl.envs import _create_env_from_config
 from mpn_rl.evaluation import _evaluate_actorcritic
 from mpn_rl.models.actor_critic import ActorCriticNet
+from mpn_rl.runs import find_run_files, load_runs
 
 OUTPUT = sys.argv[1] if len(sys.argv) > 1 else "eval_table.png"
-SWEEP = "ng-sweep-v1"
+SWEEP = sys.argv[2] if len(sys.argv) > 2 else "ng-sweep-v1"
 NUM_EPISODES = 2000
 DEVICE = torch.device("cpu")
 MODEL_ORDER = ["lstm", "rnn", "mpn", "mpn-frozen"]
@@ -47,18 +48,19 @@ ENV_LABELS = {
 # ---------------------------------------------------------------------------
 
 con = duckdb.connect()
-con.execute("""
+metrics_list = (
+    "[" + ", ".join(f"'{p}'" for p in find_run_files("metrics.jsonl", None)) + "]"
+)
+con.execute(f"""
     CREATE VIEW metrics AS
     SELECT experiment_name, frame, reward
     FROM read_ndjson(
-        'experiments/*/metrics.jsonl',
-        columns = {experiment_name: 'VARCHAR', frame: 'INTEGER', reward: 'DOUBLE'},
+        {metrics_list},
+        columns = {{experiment_name: 'VARCHAR', frame: 'INTEGER', reward: 'DOUBLE'}},
         ignore_errors = true
     )
 """)
-con.execute(
-    "CREATE VIEW configs AS SELECT * FROM read_json_auto('experiments/*/config.json', ignore_errors=true)"
-)
+con.register("configs", load_runs())
 
 env_filter = ", ".join(f"'{e}'" for e in ENVS)
 best_df = con.execute(f"""
@@ -75,14 +77,14 @@ best_df = con.execute(f"""
         FROM windowed GROUP BY experiment_name
     ),
     ranked AS (
-        SELECT c.env_name, c.model_type, c.experiment_name, b.best_rolling,
+        SELECT c.env_name, c.model_type, c.experiment_name, c.path, b.best_rolling,
             ROW_NUMBER() OVER (
                 PARTITION BY c.env_name, c.model_type ORDER BY b.best_rolling DESC
             ) AS rn
         FROM configs c JOIN best_per_exp b ON c.experiment_name = b.experiment_name
         WHERE c.sweep_name = '{SWEEP}' AND c.env_name IN ({env_filter})
     )
-    SELECT env_name, model_type, experiment_name
+    SELECT env_name, model_type, experiment_name, path
     FROM ranked WHERE rn = 1
 """).fetchdf()
 con.close()
@@ -99,8 +101,9 @@ for _, row in best_df.iterrows():
     env_name = row["env_name"]
     model_type = row["model_type"]
 
-    ckpt_path = Path("experiments") / exp_name / "checkpoints" / "best_model.pt"
-    cfg_path = Path("experiments") / exp_name / "config.json"
+    run_dir = Path(row["path"])
+    ckpt_path = run_dir / "checkpoints" / "best_model.pt"
+    cfg_path = run_dir / "config.json"
 
     if not ckpt_path.exists():
         results[env_name][model_type] = (float("nan"), float("nan"))

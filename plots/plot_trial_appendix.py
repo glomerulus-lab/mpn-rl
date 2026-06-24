@@ -12,6 +12,7 @@ Usage:
 
 import json
 import sys
+from pathlib import Path
 
 import duckdb
 import matplotlib.pyplot as plt
@@ -20,12 +21,13 @@ import numpy as np
 import torch
 
 from mpn_rl.models.actor_critic import ActorCriticNet
+from mpn_rl.runs import find_run_files, load_runs
 
 ENV = sys.argv[1] if len(sys.argv) > 1 else "PerceptualDecisionMaking-v0"
 OUTPUT = sys.argv[2] if len(sys.argv) > 2 else "trial_appendix.png"
 SEED = int(sys.argv[3]) if len(sys.argv) > 3 else 0
-
-SWEEPS = ["ng-sweep-v1", "ng-sweep-v2", "ng-sweep-v3", "ng-sweep-v4"]
+_sweeps_arg = sys.argv[4] if len(sys.argv) > 4 else "ng-sweep-v1"
+SWEEPS = [s.strip() for s in _sweeps_arg.split(",")]
 
 MODEL_COLOR = "#2ca02c"
 GT_COLOR = "#444444"
@@ -62,28 +64,32 @@ def extract_channels(t_obs, actions):
 # ---------------------------------------------------------------------------
 
 con = duckdb.connect()
+metrics_list = (
+    "[" + ", ".join(f"'{p}'" for p in find_run_files("metrics.jsonl", None)) + "]"
+)
+con.register("configs", load_runs())
 row = con.execute(
-    """
+    f"""
     WITH windowed AS (
         SELECT experiment_name,
             AVG(reward) OVER (
                 PARTITION BY experiment_name ORDER BY frame
                 ROWS BETWEEN 49 PRECEDING AND CURRENT ROW
             ) AS reward_50
-        FROM read_ndjson('experiments/*/metrics.jsonl',
-            columns={experiment_name:'VARCHAR',frame:'INTEGER',reward:'DOUBLE'},
+        FROM read_ndjson({metrics_list},
+            columns={{experiment_name:'VARCHAR',frame:'INTEGER',reward:'DOUBLE'}},
             ignore_errors=true)
     )
-    SELECT c.experiment_name, MAX(w.reward_50) AS peak
-    FROM read_json_auto('experiments/*/config.json', ignore_errors=true) c
+    SELECT c.experiment_name, c.path, MAX(w.reward_50) AS peak
+    FROM configs c
     JOIN windowed w ON c.experiment_name = w.experiment_name
-    WHERE c.sweep_name IN ('ng-sweep-v1','ng-sweep-v2','ng-sweep-v3','ng-sweep-v4')
+    WHERE c.sweep_name IN ({", ".join("?" for _ in SWEEPS)})
       AND c.env_name = ?
       AND c.model_type = 'mpn'
-    GROUP BY c.experiment_name
+    GROUP BY c.experiment_name, c.path
     ORDER BY peak DESC LIMIT 1
 """,
-    [ENV],
+    [*SWEEPS, ENV],
 ).fetchone()
 con.close()
 
@@ -91,14 +97,15 @@ if row is None:
     print(f"No MPN experiment found for {ENV}")
     sys.exit(1)
 
-exp_name, peak = row
+exp_name, run_path, peak = row
 print(f"Best MPN for {ENV}: {exp_name}  peak={peak:.3f}")
 
 # ---------------------------------------------------------------------------
 # Load model
 # ---------------------------------------------------------------------------
 
-cfg = json.load(open(f"experiments/{exp_name}/config.json"))
+run_dir = Path(run_path)
+cfg = json.load(open(run_dir / "config.json"))
 env0 = ngym.make(ENV, dt=100)
 model = ActorCriticNet(
     input_dim=env0.observation_space.shape[0],
@@ -113,7 +120,7 @@ model = ActorCriticNet(
     mpn_bias=cfg.get("mpn_bias", True),
 )
 ckpt = torch.load(
-    f"experiments/{exp_name}/checkpoints/best_model.pt",
+    run_dir / "checkpoints" / "best_model.pt",
     map_location="cpu",
     weights_only=False,
 )

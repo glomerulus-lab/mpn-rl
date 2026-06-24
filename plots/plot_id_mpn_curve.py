@@ -12,6 +12,7 @@ Usage:
 
 import json
 import sys
+from pathlib import Path
 
 import duckdb
 import matplotlib.gridspec as gridspec
@@ -21,6 +22,7 @@ import numpy as np
 import torch
 
 from mpn_rl.models.actor_critic import ActorCriticNet
+from mpn_rl.runs import find_run_files, load_runs
 
 SWEEP = sys.argv[1] if len(sys.argv) > 1 else "ng-sweep-v1"
 OUTPUT = sys.argv[2] if len(sys.argv) > 2 else "id_mpn_curve.png"
@@ -45,10 +47,10 @@ MODEL_COLORS = {
 # ---------------------------------------------------------------------------
 
 con = duckdb.connect()
-con.execute("""
-    CREATE VIEW configs AS
-    SELECT * FROM read_json_auto('experiments/*/config.json', ignore_errors = true)
-""")
+con.register("configs", load_runs())
+metrics_list = (
+    "[" + ", ".join(f"'{p}'" for p in find_run_files("metrics.jsonl", None)) + "]"
+)
 
 sweeps_sql = ", ".join(f"'{t}'" for t in SWEEPS)
 
@@ -60,12 +62,12 @@ best_exps = con.execute(f"""
                 ROWS BETWEEN 49 PRECEDING AND CURRENT ROW
             ) AS reward_50,
             MAX(frame) OVER (PARTITION BY experiment_name) AS max_frame
-        FROM read_ndjson('experiments/*/metrics.jsonl',
+        FROM read_ndjson({metrics_list},
             columns={{experiment_name:'VARCHAR', frame:'INTEGER', reward:'DOUBLE'}},
             ignore_errors=true)
     ),
     run_peaks AS (
-        SELECT c.experiment_name, c.sweep_name, c.model_type,
+        SELECT c.experiment_name, c.sweep_name, c.model_type, c.path,
             c.num_layers, c.hidden_dim, c.learning_rate,
             MAX(w.max_frame)  AS max_frame,
             MAX(w.reward_50)  AS peak_reward
@@ -73,7 +75,7 @@ best_exps = con.execute(f"""
         WHERE c.sweep_name IN ({sweeps_sql})
           AND c.env_name = '{ENV}'
           AND c.model_type IN ('mpn', 'mpn-frozen')
-        GROUP BY c.experiment_name, c.sweep_name, c.model_type,
+        GROUP BY c.experiment_name, c.sweep_name, c.model_type, c.path,
                  c.num_layers, c.hidden_dim, c.learning_rate
     ),
     deduped AS (
@@ -86,7 +88,7 @@ best_exps = con.execute(f"""
             FROM run_peaks
         ) WHERE rn = 1
     )
-    SELECT experiment_name, model_type, sweep_name, peak_reward
+    SELECT experiment_name, model_type, sweep_name, path, peak_reward
     FROM deduped
     QUALIFY ROW_NUMBER() OVER (PARTITION BY model_type ORDER BY peak_reward DESC) = 1
 """).fetchdf()
@@ -106,9 +108,9 @@ if best_exps.empty:
 # ---------------------------------------------------------------------------
 
 
-def load_training_curve(exp_name):
+def load_training_curve(run_path):
     episodes, rewards = [], []
-    with open(f"experiments/{exp_name}/metrics.jsonl") as f:
+    with open(Path(run_path) / "metrics.jsonl") as f:
         for line in f:
             d = json.loads(line)
             episodes.append(d["episode"])
@@ -121,15 +123,15 @@ def load_training_curve(exp_name):
 
 training_curves = {}
 for _, row in best_exps.iterrows():
-    training_curves[row["model_type"]] = load_training_curve(row["experiment_name"])
+    training_curves[row["model_type"]] = load_training_curve(row["path"])
 
 # ---------------------------------------------------------------------------
 # Load trained models
 # ---------------------------------------------------------------------------
 
 
-def load_model(exp_name):
-    cfg = json.load(open(f"experiments/{exp_name}/config.json"))
+def load_model(run_path):
+    cfg = json.load(open(Path(run_path) / "config.json"))
     env = ngym.make(ENV, dt=100)
     model = ActorCriticNet(
         input_dim=env.observation_space.shape[0],
@@ -144,7 +146,7 @@ def load_model(exp_name):
         mpn_bias=cfg.get("mpn_bias", True),
     )
     ckpt = torch.load(
-        f"experiments/{exp_name}/checkpoints/best_model.pt",
+        Path(run_path) / "checkpoints" / "best_model.pt",
         map_location="cpu",
         weights_only=False,
     )
@@ -156,7 +158,7 @@ def load_model(exp_name):
 
 loaded_models = {}
 for _, row in best_exps.iterrows():
-    loaded_models[row["model_type"]] = load_model(row["experiment_name"])
+    loaded_models[row["model_type"]] = load_model(row["path"])
 
 # ---------------------------------------------------------------------------
 # Collect sample trials

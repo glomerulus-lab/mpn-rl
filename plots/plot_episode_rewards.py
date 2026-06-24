@@ -6,6 +6,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
+from mpn_rl.runs import load_runs
+
 COLORS = {
     "rnn": "#1f77b4",
     "lstm": "#ff7f0e",
@@ -36,16 +38,21 @@ def load_jsonl(path):
     return np.array(rewards)
 
 
+runs = load_runs()
+
 fig, axes = plt.subplots(1, 2, figsize=(13, 5))
 
 for ax, (task_name, task_key) in zip(axes, TASKS.items()):
-    dirs = sorted(Path("experiments").glob(f"a2c_run2-{task_key}-*"))
+    prefix = f"a2c_run2-{task_key}-"
+    matched = runs[runs["experiment_name"].str.startswith(prefix)]
+    matched = matched.sort_values("experiment_name")
     plotted = set()
-    for d in dirs:
+    for _, run in matched.iterrows():
+        d = Path(run["path"])
         mf = d / "metrics.jsonl"
         if not mf.exists() or mf.stat().st_size == 0:
             continue
-        model = d.name.split(f"a2c_run2-{task_key}-")[1].rsplit("-", 1)[0]
+        model = run["experiment_name"].split(prefix)[1].rsplit("-", 1)[0]
         rewards = load_jsonl(mf)
         episodes = np.arange(len(rewards))
         color = COLORS.get(model, "grey")

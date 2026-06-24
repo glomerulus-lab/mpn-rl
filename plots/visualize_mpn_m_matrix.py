@@ -26,6 +26,18 @@ import torch
 
 from mpn_rl.envs import TrialEndWrapper
 from mpn_rl.models.actor_critic import ActorCriticNet
+from mpn_rl.runs import load_runs
+
+
+def _resolve_run_dir(experiment: str) -> Path:
+    """Resolve an experiment path or name to its run directory."""
+    if Path(experiment).exists():
+        return Path(experiment)
+    runs = load_runs()
+    matches = runs[runs["experiment_name"] == experiment]
+    if matches.empty:
+        raise FileNotFoundError(f"No run found for experiment '{experiment}'")
+    return Path(matches.iloc[0]["path"])
 
 
 def _make_env(config):
@@ -194,7 +206,7 @@ def make_gif(
 ):
 
     device = torch.device(device_str)
-    exp_dir = Path("experiments") / experiment_dir
+    exp_dir = _resolve_run_dir(experiment_dir)
 
     print(f"Loading model from {exp_dir} ...")
     model, config = _load_model(exp_dir, device)

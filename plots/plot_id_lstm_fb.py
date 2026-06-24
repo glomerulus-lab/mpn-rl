@@ -16,13 +16,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 
+from mpn_rl.runs import find_run_files, load_runs
+
 OUTPUT = sys.argv[1] if len(sys.argv) > 1 else "id_lstm_fb.png"
+TAG = sys.argv[2] if len(sys.argv) > 2 else "ng-sweep-v1"
 
 ENV = "IntervalDiscrimination-v0"
 LAYERS = [1, 2, 3]
 
 CONDITIONS = {
-    "LSTM (standard)": ("ng-sweep-v1", "#1f77b4"),
+    "LSTM (standard)": (TAG, "#1f77b4"),
     "LSTM (forget bias)": ("lstm-fb-sweep-v1", "#ff7f0e"),
 }
 
@@ -36,19 +39,19 @@ def smooth(
 
 
 con = duckdb.connect()
-con.execute("""
+metrics_list = (
+    "[" + ", ".join(f"'{p}'" for p in find_run_files("metrics.jsonl", None)) + "]"
+)
+con.execute(f"""
     CREATE VIEW metrics AS
     SELECT experiment_name, episode, reward
     FROM read_ndjson(
-        'experiments/*/metrics.jsonl',
-        columns = {experiment_name: 'VARCHAR', episode: 'INTEGER', reward: 'DOUBLE'},
+        {metrics_list},
+        columns = {{experiment_name: 'VARCHAR', episode: 'INTEGER', reward: 'DOUBLE'}},
         ignore_errors = true
     )
 """)
-con.execute("""
-    CREATE VIEW configs AS
-    SELECT * FROM read_json_auto('experiments/*/config.json', ignore_errors = true)
-""")
+con.register("configs", load_runs())
 
 all_sweeps = ", ".join(f"'{t}'" for _, (t, _) in CONDITIONS.items())
 

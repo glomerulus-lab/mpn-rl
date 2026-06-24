@@ -20,6 +20,8 @@ import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
 
+from mpn_rl.runs import find_run_files, load_runs
+
 _sweeps_arg = (
     sys.argv[1]
     if len(sys.argv) > 1
@@ -57,19 +59,19 @@ LONG_LABEL_BREAKS = {
 # ---------------------------------------------------------------------------
 
 con = duckdb.connect()
-con.execute("""
+metrics_list = (
+    "[" + ", ".join(f"'{p}'" for p in find_run_files("metrics.jsonl", None)) + "]"
+)
+con.execute(f"""
     CREATE VIEW metrics AS
     SELECT experiment_name, frame, reward
     FROM read_ndjson(
-        'experiments/*/metrics.jsonl',
-        columns = {experiment_name: 'VARCHAR', frame: 'INTEGER', reward: 'DOUBLE'},
+        {metrics_list},
+        columns = {{experiment_name: 'VARCHAR', frame: 'INTEGER', reward: 'DOUBLE'}},
         ignore_errors = true
     )
 """)
-con.execute("""
-    CREATE VIEW configs AS
-    SELECT * FROM read_json_auto('experiments/*/config.json', ignore_errors = true)
-""")
+con.register("configs", load_runs())
 
 sweeps_sql = ", ".join(f"'{t}'" for t in SWEEPS)
 

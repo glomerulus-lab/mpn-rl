@@ -1,4 +1,7 @@
+import json
 from pathlib import Path
+
+import pandas as pd
 
 
 def find_run_files(
@@ -17,3 +20,13 @@ def find_run_files(
         *(root / "experiments").glob(f"*/{filename}"),
         *(root / "results").glob(f"*/experiments/*/{filename}"),
     ]
+
+
+def load_runs(root: Path = Path()) -> pd.DataFrame:
+    """One row per run: the flat config fields plus a `path` column."""
+    records = []
+    for p in find_run_files("config.json", None, root=root):
+        config = json.loads(p.read_text())
+        config["path"] = str(p.parent)
+        records.append(config)
+    return pd.DataFrame(records)
