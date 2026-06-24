@@ -25,87 +25,7 @@ import numpy as np
 import torch
 
 from mpn_rl.envs import TrialEndWrapper
-from mpn_rl.nn.mpn import MPN
-
-
-class _ActorCriticNet(torch.nn.Module):
-    """Flexible ActorCriticNet that auto-matches the checkpoint's actor/critic heads."""
-
-    def __init__(
-        self,
-        input_dim,
-        action_dim,
-        hidden_dim,
-        num_layers,
-        activation,
-        lambda_max,
-        eta_init,
-        lambda_init,
-        mpn_bias,
-        actor_hidden_sizes,
-        critic_hidden_sizes,
-    ):
-        super().__init__()
-        self.num_layers = num_layers
-
-        self.core = torch.nn.ModuleList(
-            [
-                MPN(
-                    input_dim if i == 0 else hidden_dim,
-                    hidden_dim,
-                    activation=activation,
-                    lambda_max=lambda_max,
-                    eta_init=eta_init,
-                    lambda_init=lambda_init,
-                    freeze_plasticity=False,
-                    bias=mpn_bias,
-                )
-                for i in range(num_layers)
-            ]
-        )
-
-        self.postprocessor = torch.nn.Sequential(
-            torch.nn.Linear(hidden_dim, 64), torch.nn.ReLU()
-        )
-
-        actor_layers = []
-        in_dim = 64
-        for out_dim in actor_hidden_sizes:
-            actor_layers.append(torch.nn.Linear(in_dim, out_dim))
-            in_dim = out_dim
-        self.actor = torch.nn.Sequential(*actor_layers)
-
-        critic_layers = []
-        in_dim = 64
-        for out_dim in critic_hidden_sizes:
-            critic_layers.append(torch.nn.Linear(in_dim, out_dim))
-            in_dim = out_dim
-        self.critic = torch.nn.Sequential(*critic_layers)
-
-    def forward(self, x, h):
-        if h is None:
-            h = [None] * self.num_layers
-        new_h = []
-        out = x
-        for layer, h_i in zip(self.core, h):
-            out, h_i_new = layer(out, h_i)
-            new_h.append(h_i_new)
-        out = self.postprocessor(out)
-        logits = self.actor(out)
-        policy = torch.nn.functional.softmax(logits, dim=-1)
-        value = self.critic(out)
-        return policy, value, new_h
-
-
-def _infer_head_sizes(state_dict, prefix):
-    """Read Linear layer sizes for actor or critic from checkpoint keys."""
-    idx = 0
-    sizes = []
-    while f"{prefix}.{idx}.weight" in state_dict:
-        w = state_dict[f"{prefix}.{idx}.weight"]
-        sizes.append(w.shape[0])  # output dim
-        idx += 1
-    return sizes  # e.g. [64, 2] for actor
+from mpn_rl.models.actor_critic import ActorCriticNet
 
 
 def _make_env(config):
@@ -133,21 +53,17 @@ def _load_model(exp_dir: Path, device: torch.device):
     )
     sd = ckpt["model_state_dict"]
 
-    actor_sizes = _infer_head_sizes(sd, "actor")
-    critic_sizes = _infer_head_sizes(sd, "critic")
-
-    model = _ActorCriticNet(
+    model = ActorCriticNet(
         input_dim=input_dim,
         action_dim=action_dim,
         hidden_dim=config.get("hidden_dim", 128),
         num_layers=config.get("num_layers", 1),
+        model_type=config.get("model_type", "mpn"),
         activation=config.get("activation", "tanh"),
         lambda_max=config.get("lambda_max", 0.99),
         eta_init=config.get("eta_init", 0.01),
         lambda_init=config.get("lambda_init", 0.99),
         mpn_bias=config.get("mpn_bias", True),
-        actor_hidden_sizes=actor_sizes,
-        critic_hidden_sizes=critic_sizes,
     ).to(device)
 
     model.load_state_dict(sd, strict=True)
