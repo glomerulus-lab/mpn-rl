@@ -59,23 +59,31 @@ con.execute("""
 """)
 
 df = con.execute(f"""
-    WITH run_peaks AS (
+    WITH rolling AS (
         SELECT
             c.experiment_name, c.sweep_name, c.env_name, c.model_type,
             c.hidden_dim, c.num_layers, c.learning_rate,
-            MAX(m.episode)  AS max_episode,
-            MAX(AVG(m.reward) OVER (
+            m.episode,
+            AVG(m.reward) OVER (
                 PARTITION BY c.experiment_name
                 ORDER BY m.episode
                 ROWS BETWEEN 9 PRECEDING AND CURRENT ROW
-            )) AS peak_reward
+            ) AS rolling_reward
         FROM configs c
         JOIN metrics m ON c.experiment_name = m.experiment_name
         WHERE c.sweep_name IN ({", ".join(f"'{t}'" for t in SWEEPS)})
           AND c.env_name LIKE '%-v0'
+    ),
+    run_peaks AS (
+        SELECT
+            experiment_name, sweep_name, env_name, model_type,
+            hidden_dim, num_layers, learning_rate,
+            MAX(episode)        AS max_episode,
+            MAX(rolling_reward) AS peak_reward
+        FROM rolling
         GROUP BY
-            c.experiment_name, c.sweep_name, c.env_name, c.model_type,
-            c.hidden_dim, c.num_layers, c.learning_rate
+            experiment_name, sweep_name, env_name, model_type,
+            hidden_dim, num_layers, learning_rate
     ),
     deduped AS (
         SELECT * EXCLUDE(rn) FROM (
