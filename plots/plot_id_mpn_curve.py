@@ -50,7 +50,7 @@ con.execute("""
     SELECT * FROM read_json_auto('experiments/*/config.json', ignore_errors = true)
 """)
 
-tags_sql = ", ".join(f"'{t}'" for t in SWEEPS)
+sweeps_sql = ", ".join(f"'{t}'" for t in SWEEPS)
 
 best_exps = con.execute(f"""
     WITH windowed AS (
@@ -70,7 +70,7 @@ best_exps = con.execute(f"""
             MAX(w.max_frame)  AS max_frame,
             MAX(w.reward_50)  AS peak_reward
         FROM configs c JOIN windowed w ON c.experiment_name = w.experiment_name
-        WHERE c.sweep_name IN ({tags_sql})
+        WHERE c.sweep_name IN ({sweeps_sql})
           AND c.env_name = '{ENV}'
           AND c.model_type IN ('mpn', 'mpn-frozen')
         GROUP BY c.experiment_name, c.sweep_name, c.model_type,

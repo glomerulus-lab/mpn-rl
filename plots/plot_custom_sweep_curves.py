@@ -87,7 +87,7 @@ df = con.execute(f"""
             FROM run_peaks
         ) WHERE rn = 1
     ),
-    best_per_tag AS (
+    best_per_sweep AS (
         SELECT * EXCLUDE(rn) FROM (
             SELECT *,
                 ROW_NUMBER() OVER (
@@ -100,7 +100,7 @@ df = con.execute(f"""
     SELECT
         b.env_name, b.model_type, b.sweep_name, b.experiment_name,
         m.episode, m.reward
-    FROM best_per_tag b
+    FROM best_per_sweep b
     JOIN metrics m ON b.experiment_name = m.experiment_name
     ORDER BY b.env_name, b.model_type, b.sweep_name, m.episode
 """).fetchdf()
@@ -155,22 +155,22 @@ for row, env in enumerate(envs):
 
         color = MODEL_BASE_COLORS.get(mt, "#888888")
 
-        tag_curves = []
-        for _, tag_grp in cell.groupby("sweep_name"):
-            tag_grp = tag_grp.sort_values("episode")
-            sm = smooth(tag_grp["reward"].values, smooth_window)
-            tag_curves.append((tag_grp["episode"].values, sm))
+        sweep_curves = []
+        for _, sweep_grp in cell.groupby("sweep_name"):
+            sweep_grp = sweep_grp.sort_values("episode")
+            sm = smooth(sweep_grp["reward"].values, smooth_window)
+            sweep_curves.append((sweep_grp["episode"].values, sm))
 
-        if len(tag_curves) == 1:
-            ep, sm = tag_curves[0]
+        if len(sweep_curves) == 1:
+            ep, sm = sweep_curves[0]
             ax.plot(ep, sm, color=color, linewidth=1.8, zorder=3)
         else:
-            max_ep = max(c[0][-1] for c in tag_curves)
+            max_ep = max(c[0][-1] for c in sweep_curves)
             common_ep = np.linspace(0, max_ep, 500)
             stack = np.array(
                 [
                     np.interp(common_ep, ep, sm, left=np.nan, right=np.nan)
-                    for ep, sm in tag_curves
+                    for ep, sm in sweep_curves
                 ]
             )
             mean_curve = np.nanmean(stack, axis=0)

@@ -50,7 +50,7 @@ con.execute("""
     SELECT * FROM read_json_auto('experiments/*/config.json', ignore_errors = true)
 """)
 
-all_tags = ", ".join(f"'{t}'" for _, (t, _) in CONDITIONS.items())
+all_sweeps = ", ".join(f"'{t}'" for _, (t, _) in CONDITIONS.items())
 
 df = con.execute(f"""
     WITH windowed AS (
@@ -79,7 +79,7 @@ df = con.execute(f"""
         JOIN rolled r ON c.experiment_name = r.experiment_name
         WHERE c.env_name = '{ENV}'
           AND c.model_type = 'lstm'
-          AND c.sweep_name IN ({all_tags})
+          AND c.sweep_name IN ({all_sweeps})
     ),
     best AS (
         SELECT sweep_name, num_layers, experiment_name FROM ranked WHERE rn = 1

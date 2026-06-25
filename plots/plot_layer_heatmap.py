@@ -48,7 +48,7 @@ con.execute("""
     SELECT * FROM read_json_auto('experiments/*/config.json', ignore_errors = true)
 """)
 
-tags_sql = ", ".join(f"'{t}'" for t in SWEEPS)
+sweeps_sql = ", ".join(f"'{t}'" for t in SWEEPS)
 
 df = con.execute(f"""
     WITH windowed AS (
@@ -69,7 +69,7 @@ df = con.execute(f"""
             MAX(w.reward_50) AS peak_reward
         FROM configs c
         JOIN windowed w ON c.experiment_name = w.experiment_name
-        WHERE c.sweep_name IN ({tags_sql})
+        WHERE c.sweep_name IN ({sweeps_sql})
           AND c.model_type = '{MODEL_TYPE}'
           AND c.num_layers IS NOT NULL
           AND c.hidden_dim IS NOT NULL

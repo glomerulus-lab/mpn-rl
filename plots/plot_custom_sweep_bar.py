@@ -71,7 +71,7 @@ con.execute("""
     SELECT * FROM read_json_auto('experiments/*/config.json', ignore_errors = true)
 """)
 
-tags_sql = ", ".join(f"'{t}'" for t in SWEEPS)
+sweeps_sql = ", ".join(f"'{t}'" for t in SWEEPS)
 
 df = con.execute(f"""
     WITH windowed AS (
@@ -98,7 +98,7 @@ df = con.execute(f"""
             MAX(w.reward_window)  AS peak_reward
         FROM configs c
         JOIN windowed w ON c.experiment_name = w.experiment_name
-        WHERE c.sweep_name IN ({tags_sql})
+        WHERE c.sweep_name IN ({sweeps_sql})
           AND c.env_name LIKE '%-v0'
         GROUP BY
             c.experiment_name, c.sweep_name, c.env_name, c.model_type,
@@ -116,7 +116,7 @@ df = con.execute(f"""
         )
         WHERE rn = 1
     ),
-    best_per_tag AS (
+    best_per_sweep AS (
         SELECT * EXCLUDE (rn)
         FROM (
             SELECT *,
@@ -132,7 +132,7 @@ df = con.execute(f"""
         env_name, model_type,
         AVG(peak_reward)    AS mean_reward,
         STDDEV(peak_reward) AS std_reward
-    FROM best_per_tag
+    FROM best_per_sweep
     GROUP BY env_name, model_type
     ORDER BY env_name, model_type
 """).fetchdf()
