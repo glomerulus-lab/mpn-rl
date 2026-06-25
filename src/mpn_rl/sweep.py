@@ -101,9 +101,13 @@ def create_sweep(
         "universe = vanilla\n"
         f"executable = {run_script.resolve()}\n"
         f"initialdir = {Path.cwd()}\n"
-        "request_cpus   = 2\n"
+        "request_cpus   = 1\n"
         f"request_gpus   = {request_gpus}\n"
         "request_memory = 8GB\n"
+        # Training is single-threaded sequential RL with tiny nets; pin BLAS/Torch
+        # threads to 1 so a job can't oversubscribe its slot (libs otherwise size
+        # threads to the whole machine, not the Condor allocation).
+        'environment = "OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1"\n'
         f"output = {sweep_dir}/logs/{name}-$INT(Process,%04d).out\n"
         f"error  = {sweep_dir}/logs/{name}-$INT(Process,%04d).err\n"
         f"log    = {sweep_dir}/logs/{name}-$INT(Process,%04d).log\n"

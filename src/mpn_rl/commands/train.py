@@ -171,6 +171,9 @@ def train_neurogym(args: TrainConfig):
     Supports rnn, lstm, mpn, mpn-frozen.
     """
     _seed_rngs(args.seed)
+    # Single-threaded sequential RL with tiny nets: 1 thread is fastest and keeps
+    # a job from oversubscribing its CPU slot (see the Condor env in sweep.py).
+    torch.set_num_threads(1)
     print("=" * 60)
     print("Training with A2C + BPTT on NeuroGym")
     print("=" * 60)
