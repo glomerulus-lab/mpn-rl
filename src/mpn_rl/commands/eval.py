@@ -1,7 +1,7 @@
 import random
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 import numpy as np
 import torch
@@ -24,7 +24,7 @@ class EvalConfig:
     num_eval_episodes: int = 10
     checkpoint: str | None = None
     max_episode_steps: int = 500
-    device: str = "cpu"
+    device: Literal["cpu", "gpu"] = "cpu"
 
 
 def evaluate(args: EvalConfig):
