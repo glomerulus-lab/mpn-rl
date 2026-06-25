@@ -25,6 +25,13 @@ from mpn_rl.models.actor_critic import ActorCriticNet
 from mpn_rl.oracle_agents import get_oracle_reward
 
 
+def _seed_rngs(seed: int) -> None:
+    """Seed Python, NumPy, and Torch global RNGs for a reproducible run."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
+
 def _compute_returns_episode(rewards, dones, next_value, gamma):
     """List-based return computation matching the reference repo."""
     R = next_value
@@ -120,6 +127,7 @@ class TrainConfig(BaseModel, extra="forbid"):
         Field(ge=1),
     ] = 50
     num_eval_episodes: int = Field(10, ge=1)
+    seed: int = Field(42, ge=0, lt=2**32)
     device: Literal["cpu", "gpu"] = "cpu"
     tag: str | None = None
     wandb: bool = False
@@ -162,6 +170,7 @@ def train_neurogym(args: TrainConfig):
     BPTT through each episode.
     Supports rnn, lstm, mpn, mpn-frozen.
     """
+    _seed_rngs(args.seed)
     print("=" * 60)
     print("Training with A2C + BPTT on NeuroGym")
     print("=" * 60)
