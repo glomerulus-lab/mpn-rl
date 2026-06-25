@@ -7,9 +7,9 @@ error bars showing ±1 std across those runs. Duplicate runs within a sweep
 version are resolved by keeping the most complete run (highest max frame).
 
 Usage:
-    python plot_custom_sweep_bar.py [tags] [output]
+    python plot_custom_sweep_bar.py [sweeps] [output]
 
-    tags   - comma-separated experiment tags (default: ng-sweep-v1)
+    sweeps - comma-separated sweep names (default: ng-sweep-v1)
     output - output file path (default: custom_sweep_bar.png)
 """
 
@@ -20,12 +20,12 @@ import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
 
-_tags_arg = (
+_sweeps_arg = (
     sys.argv[1]
     if len(sys.argv) > 1
     else "ng-sweep-v1,ng-sweep-v2,ng-sweep-v3,ng-sweep-v4"
 )
-TAGS = [t.strip() for t in _tags_arg.split(",")]
+SWEEPS = [t.strip() for t in _sweeps_arg.split(",")]
 OUTPUT = sys.argv[2] if len(sys.argv) > 2 else "custom_sweep_bar.png"
 
 MODEL_TYPES = ["mpn-frozen", "lstm", "mpn", "rnn"]
@@ -71,7 +71,7 @@ con.execute("""
     SELECT * FROM read_json_auto('experiments/*/config.json', ignore_errors = true)
 """)
 
-tags_sql = ", ".join(f"'{t}'" for t in TAGS)
+tags_sql = ", ".join(f"'{t}'" for t in SWEEPS)
 
 df = con.execute(f"""
     WITH windowed AS (
@@ -88,7 +88,7 @@ df = con.execute(f"""
     run_peaks AS (
         SELECT
             c.experiment_name,
-            c.tag,
+            c.sweep_name,
             c.env_name,
             c.model_type,
             c.hidden_dim,
@@ -98,10 +98,10 @@ df = con.execute(f"""
             MAX(w.reward_window)  AS peak_reward
         FROM configs c
         JOIN windowed w ON c.experiment_name = w.experiment_name
-        WHERE c.tag IN ({tags_sql})
+        WHERE c.sweep_name IN ({tags_sql})
           AND c.env_name LIKE '%-v0'
         GROUP BY
-            c.experiment_name, c.tag, c.env_name, c.model_type,
+            c.experiment_name, c.sweep_name, c.env_name, c.model_type,
             c.hidden_dim, c.num_layers, c.learning_rate
     ),
     deduped AS (
@@ -109,7 +109,7 @@ df = con.execute(f"""
         FROM (
             SELECT *,
                    ROW_NUMBER() OVER (
-                       PARTITION BY tag, env_name, model_type, hidden_dim, num_layers, learning_rate
+                       PARTITION BY sweep_name, env_name, model_type, hidden_dim, num_layers, learning_rate
                        ORDER BY max_frame DESC
                    ) AS rn
             FROM run_peaks
@@ -121,7 +121,7 @@ df = con.execute(f"""
         FROM (
             SELECT *,
                    ROW_NUMBER() OVER (
-                       PARTITION BY tag, env_name, model_type
+                       PARTITION BY sweep_name, env_name, model_type
                        ORDER BY peak_reward DESC
                    ) AS rn
             FROM deduped

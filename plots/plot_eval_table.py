@@ -23,7 +23,7 @@ from mpn_rl.evaluation import _evaluate_actorcritic
 from mpn_rl.models.actor_critic import ActorCriticNet
 
 OUTPUT = sys.argv[1] if len(sys.argv) > 1 else "eval_table.png"
-TAG = "ng-sweep-v1"
+SWEEP = "ng-sweep-v1"
 NUM_EPISODES = 2000
 DEVICE = torch.device("cpu")
 MODEL_ORDER = ["lstm", "rnn", "mpn", "mpn-frozen"]
@@ -80,7 +80,7 @@ best_df = con.execute(f"""
                 PARTITION BY c.env_name, c.model_type ORDER BY b.best_rolling DESC
             ) AS rn
         FROM configs c JOIN best_per_exp b ON c.experiment_name = b.experiment_name
-        WHERE c.tag = '{TAG}' AND c.env_name IN ({env_filter})
+        WHERE c.sweep_name = '{SWEEP}' AND c.env_name IN ({env_filter})
     )
     SELECT env_name, model_type, experiment_name
     FROM ranked WHERE rn = 1

@@ -70,24 +70,24 @@ df = con.execute(f"""
     ),
     ranked AS (
         SELECT
-            c.tag, c.num_layers, c.experiment_name,
+            c.sweep_name, c.num_layers, c.experiment_name,
             ROW_NUMBER() OVER (
-                PARTITION BY c.tag, c.num_layers
+                PARTITION BY c.sweep_name, c.num_layers
                 ORDER BY r.best_sustained DESC
             ) AS rn
         FROM configs c
         JOIN rolled r ON c.experiment_name = r.experiment_name
         WHERE c.env_name = '{ENV}'
           AND c.model_type = 'lstm'
-          AND c.tag IN ({all_tags})
+          AND c.sweep_name IN ({all_tags})
     ),
     best AS (
-        SELECT tag, num_layers, experiment_name FROM ranked WHERE rn = 1
+        SELECT sweep_name, num_layers, experiment_name FROM ranked WHERE rn = 1
     )
-    SELECT b.tag, b.num_layers, b.experiment_name, m.episode, m.reward
+    SELECT b.sweep_name, b.num_layers, b.experiment_name, m.episode, m.reward
     FROM best b
     JOIN metrics m ON b.experiment_name = m.experiment_name
-    ORDER BY b.tag, b.num_layers, m.episode
+    ORDER BY b.sweep_name, b.num_layers, m.episode
 """).fetchdf()
 con.close()
 
@@ -99,8 +99,10 @@ for col, nl in enumerate(LAYERS):
     ax.set_title(f"{nl} layer{'s' if nl > 1 else ''}", fontsize=11)
     has_any = False
 
-    for label, (tag, color) in CONDITIONS.items():
-        cell = df[(df["tag"] == tag) & (df["num_layers"] == nl)].sort_values("episode")
+    for label, (sweep_name, color) in CONDITIONS.items():
+        cell = df[
+            (df["sweep_name"] == sweep_name) & (df["num_layers"] == nl)
+        ].sort_values("episode")
         if cell.empty:
             continue
         has_any = True

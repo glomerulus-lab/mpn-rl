@@ -6,7 +6,7 @@ Within each cell: one curve per (num_layers, learning_rate), averaged over hidde
 Color shade = num_layers (light → dark), line style = learning_rate (solid/dashed).
 
 Usage:
-    python plot_custom_sweep_curves.py [tag] [output]
+    python plot_custom_sweep_curves.py [sweep] [output]
 """
 
 import sys
@@ -16,9 +16,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-_tags_arg = sys.argv[1] if len(sys.argv) > 1 else "ng-sweep-v1"
-TAGS = [t.strip() for t in _tags_arg.split(",")]
-TAG = _tags_arg
+_sweeps_arg = sys.argv[1] if len(sys.argv) > 1 else "ng-sweep-v1"
+SWEEPS = [t.strip() for t in _sweeps_arg.split(",")]
+SWEEP = _sweeps_arg
 OUTPUT = sys.argv[2] if len(sys.argv) > 2 else "custom_sweep_curves.png"
 
 # ---------------------------------------------------------------------------
@@ -61,7 +61,7 @@ con.execute("""
 df = con.execute(f"""
     WITH run_peaks AS (
         SELECT
-            c.experiment_name, c.tag, c.env_name, c.model_type,
+            c.experiment_name, c.sweep_name, c.env_name, c.model_type,
             c.hidden_dim, c.num_layers, c.learning_rate,
             MAX(m.episode)  AS max_episode,
             MAX(AVG(m.reward) OVER (
@@ -71,17 +71,17 @@ df = con.execute(f"""
             )) AS peak_reward
         FROM configs c
         JOIN metrics m ON c.experiment_name = m.experiment_name
-        WHERE c.tag IN ({", ".join(f"'{t}'" for t in TAGS)})
+        WHERE c.sweep_name IN ({", ".join(f"'{t}'" for t in SWEEPS)})
           AND c.env_name LIKE '%-v0'
         GROUP BY
-            c.experiment_name, c.tag, c.env_name, c.model_type,
+            c.experiment_name, c.sweep_name, c.env_name, c.model_type,
             c.hidden_dim, c.num_layers, c.learning_rate
     ),
     deduped AS (
         SELECT * EXCLUDE(rn) FROM (
             SELECT *,
                 ROW_NUMBER() OVER (
-                    PARTITION BY tag, env_name, model_type, hidden_dim, num_layers, learning_rate
+                    PARTITION BY sweep_name, env_name, model_type, hidden_dim, num_layers, learning_rate
                     ORDER BY max_episode DESC
                 ) AS rn
             FROM run_peaks
@@ -91,23 +91,23 @@ df = con.execute(f"""
         SELECT * EXCLUDE(rn) FROM (
             SELECT *,
                 ROW_NUMBER() OVER (
-                    PARTITION BY tag, env_name, model_type
+                    PARTITION BY sweep_name, env_name, model_type
                     ORDER BY peak_reward DESC
                 ) AS rn
             FROM deduped
         ) WHERE rn = 1
     )
     SELECT
-        b.env_name, b.model_type, b.tag, b.experiment_name,
+        b.env_name, b.model_type, b.sweep_name, b.experiment_name,
         m.episode, m.reward
     FROM best_per_tag b
     JOIN metrics m ON b.experiment_name = m.experiment_name
-    ORDER BY b.env_name, b.model_type, b.tag, m.episode
+    ORDER BY b.env_name, b.model_type, b.sweep_name, m.episode
 """).fetchdf()
 con.close()
 
 if df.empty:
-    print(f"No data found for tag='{TAG}'.")
+    print(f"No data found for sweep='{SWEEP}'.")
     sys.exit(1)
 
 envs = sorted(df["env_name"].unique())
@@ -126,7 +126,7 @@ fig, axes = plt.subplots(
     sharey="row",
 )
 
-fig.suptitle(f"Training Curves — {TAG}", fontsize=13, fontweight="bold", y=1.01)
+fig.suptitle(f"Training Curves — {SWEEP}", fontsize=13, fontweight="bold", y=1.01)
 
 smooth_window = 50
 
@@ -156,7 +156,7 @@ for row, env in enumerate(envs):
         color = MODEL_BASE_COLORS.get(mt, "#888888")
 
         tag_curves = []
-        for _, tag_grp in cell.groupby("tag"):
+        for _, tag_grp in cell.groupby("sweep_name"):
             tag_grp = tag_grp.sort_values("episode")
             sm = smooth(tag_grp["reward"].values, smooth_window)
             tag_curves.append((tag_grp["episode"].values, sm))

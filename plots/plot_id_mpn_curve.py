@@ -7,7 +7,7 @@ Outputs:
     <output>_2trials   - training curve + 2 sample trials
 
 Usage:
-    python plot_id_mpn_curve.py [tags] [output] [seed] [env]
+    python plot_id_mpn_curve.py [sweeps] [output] [seed] [env]
 """
 
 import json
@@ -22,11 +22,11 @@ import torch
 
 from mpn_rl.models.actor_critic import ActorCriticNet
 
-TAG = sys.argv[1] if len(sys.argv) > 1 else "ng-sweep-v1"
+SWEEP = sys.argv[1] if len(sys.argv) > 1 else "ng-sweep-v1"
 OUTPUT = sys.argv[2] if len(sys.argv) > 2 else "id_mpn_curve.png"
 SEED = int(sys.argv[3]) if len(sys.argv) > 3 else 7
 ENV = sys.argv[4] if len(sys.argv) > 4 else "IntervalDiscrimination-v0"
-TAGS = [t.strip() for t in TAG.split(",")]
+SWEEPS = [t.strip() for t in SWEEP.split(",")]
 SMOOTH = 50
 
 ENV_CONFIG = {
@@ -50,7 +50,7 @@ con.execute("""
     SELECT * FROM read_json_auto('experiments/*/config.json', ignore_errors = true)
 """)
 
-tags_sql = ", ".join(f"'{t}'" for t in TAGS)
+tags_sql = ", ".join(f"'{t}'" for t in SWEEPS)
 
 best_exps = con.execute(f"""
     WITH windowed AS (
@@ -65,28 +65,28 @@ best_exps = con.execute(f"""
             ignore_errors=true)
     ),
     run_peaks AS (
-        SELECT c.experiment_name, c.tag, c.model_type,
+        SELECT c.experiment_name, c.sweep_name, c.model_type,
             c.num_layers, c.hidden_dim, c.learning_rate,
             MAX(w.max_frame)  AS max_frame,
             MAX(w.reward_50)  AS peak_reward
         FROM configs c JOIN windowed w ON c.experiment_name = w.experiment_name
-        WHERE c.tag IN ({tags_sql})
+        WHERE c.sweep_name IN ({tags_sql})
           AND c.env_name = '{ENV}'
           AND c.model_type IN ('mpn', 'mpn-frozen')
-        GROUP BY c.experiment_name, c.tag, c.model_type,
+        GROUP BY c.experiment_name, c.sweep_name, c.model_type,
                  c.num_layers, c.hidden_dim, c.learning_rate
     ),
     deduped AS (
         SELECT * EXCLUDE(rn) FROM (
             SELECT *,
                 ROW_NUMBER() OVER (
-                    PARTITION BY tag, model_type, num_layers, hidden_dim, learning_rate
+                    PARTITION BY sweep_name, model_type, num_layers, hidden_dim, learning_rate
                     ORDER BY max_frame DESC
                 ) AS rn
             FROM run_peaks
         ) WHERE rn = 1
     )
-    SELECT experiment_name, model_type, tag, peak_reward
+    SELECT experiment_name, model_type, sweep_name, peak_reward
     FROM deduped
     QUALIFY ROW_NUMBER() OVER (PARTITION BY model_type ORDER BY peak_reward DESC) = 1
 """).fetchdf()
@@ -94,11 +94,11 @@ con.close()
 
 for _, row in best_exps.iterrows():
     print(
-        f"Best sweep for {row['model_type']}: tag={row['tag']}  peak={row['peak_reward']:.3f}  exp={row['experiment_name']}"
+        f"Best sweep for {row['model_type']}: sweep={row['sweep_name']}  peak={row['peak_reward']:.3f}  exp={row['experiment_name']}"
     )
 
 if best_exps.empty:
-    print(f"No data found for {ENV} with tags={TAGS}.")
+    print(f"No data found for {ENV} with sweeps={SWEEPS}.")
     sys.exit(1)
 
 # ---------------------------------------------------------------------------

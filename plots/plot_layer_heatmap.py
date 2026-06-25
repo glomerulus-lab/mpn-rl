@@ -6,9 +6,9 @@ Within each subplot: rows = hidden_dim, columns = num_layers.
 Cell color = best rolling-avg reward across all runs for that (env, num_layers, hidden_dim).
 
 Usage:
-    python plot_layer_heatmap.py [tag] [output] [model_type]
+    python plot_layer_heatmap.py [sweep] [output] [model_type]
 
-    tag        - experiment tag (default: ng-sweep-v1)
+    sweep      - sweep name (default: ng-sweep-v1)
     output     - output file path (default: layer_heatmap.png)
     model_type - model to plot (default: mpn)
 """
@@ -20,12 +20,12 @@ import duckdb
 import matplotlib.pyplot as plt
 import numpy as np
 
-_tags_arg = (
+_sweeps_arg = (
     sys.argv[1]
     if len(sys.argv) > 1
     else "ng-sweep-v1,ng-sweep-v2,ng-sweep-v3,ng-sweep-v4"
 )
-TAGS = [t.strip() for t in _tags_arg.split(",")]
+SWEEPS = [t.strip() for t in _sweeps_arg.split(",")]
 OUTPUT = sys.argv[2] if len(sys.argv) > 2 else "layer_heatmap.png"
 MODEL_TYPE = sys.argv[3] if len(sys.argv) > 3 else "mpn"
 
@@ -48,7 +48,7 @@ con.execute("""
     SELECT * FROM read_json_auto('experiments/*/config.json', ignore_errors = true)
 """)
 
-tags_sql = ", ".join(f"'{t}'" for t in TAGS)
+tags_sql = ", ".join(f"'{t}'" for t in SWEEPS)
 
 df = con.execute(f"""
     WITH windowed AS (
@@ -64,17 +64,17 @@ df = con.execute(f"""
     ),
     run_peaks AS (
         SELECT
-            c.experiment_name, c.tag, c.env_name,
+            c.experiment_name, c.sweep_name, c.env_name,
             c.num_layers, c.hidden_dim,
             MAX(w.reward_50) AS peak_reward
         FROM configs c
         JOIN windowed w ON c.experiment_name = w.experiment_name
-        WHERE c.tag IN ({tags_sql})
+        WHERE c.sweep_name IN ({tags_sql})
           AND c.model_type = '{MODEL_TYPE}'
           AND c.num_layers IS NOT NULL
           AND c.hidden_dim IS NOT NULL
         GROUP BY
-            c.experiment_name, c.tag, c.env_name,
+            c.experiment_name, c.sweep_name, c.env_name,
             c.num_layers, c.hidden_dim
     )
     SELECT env_name, num_layers, hidden_dim, MAX(peak_reward) AS best_reward

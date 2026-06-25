@@ -25,7 +25,7 @@ ENV = sys.argv[1] if len(sys.argv) > 1 else "PerceptualDecisionMaking-v0"
 OUTPUT = sys.argv[2] if len(sys.argv) > 2 else "trial_appendix.png"
 SEED = int(sys.argv[3]) if len(sys.argv) > 3 else 0
 
-TAGS = ["ng-sweep-v1", "ng-sweep-v2", "ng-sweep-v3", "ng-sweep-v4"]
+SWEEPS = ["ng-sweep-v1", "ng-sweep-v2", "ng-sweep-v3", "ng-sweep-v4"]
 
 MODEL_COLOR = "#2ca02c"
 GT_COLOR = "#444444"
@@ -77,7 +77,7 @@ row = con.execute(
     SELECT c.experiment_name, MAX(w.reward_50) AS peak
     FROM read_json_auto('experiments/*/config.json', ignore_errors=true) c
     JOIN windowed w ON c.experiment_name = w.experiment_name
-    WHERE c.tag IN ('ng-sweep-v1','ng-sweep-v2','ng-sweep-v3','ng-sweep-v4')
+    WHERE c.sweep_name IN ('ng-sweep-v1','ng-sweep-v2','ng-sweep-v3','ng-sweep-v4')
       AND c.env_name = ?
       AND c.model_type = 'mpn'
     GROUP BY c.experiment_name
