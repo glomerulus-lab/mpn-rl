@@ -1,0 +1,23 @@
+# Validation sweep: second version of coverage_seed_42.yaml (different seed only), so the
+# bar/curves cross-version variance branches (error bars / mean+-std band) fire.
+env_name:
+  - GoNogo-v0
+  - IntervalDiscrimination-v0
+  - MultiSensoryIntegration-v0
+  - PerceptualDecisionMaking-v0
+  - PerceptualDecisionMakingDelayResponse-v0
+  - ProbabilisticReasoning-v0
+model:
+  - {model_type: lstm}
+  - {model_type: rnn}
+  - {model_type: mpn}
+  - {model_type: mpn-frozen}
+num_layers: [1, 2, 3]
+hidden_dim: [64, 128]
+learning_rate: 0.001
+total_frames: 40000
+max_episode_steps: 200
+print_freq: 10
+num_eval_episodes: 5
+device: cpu
+seed: 43

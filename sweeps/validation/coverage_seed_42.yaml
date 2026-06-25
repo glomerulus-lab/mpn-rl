@@ -1,0 +1,23 @@
+# Validation sweep: exercises every plot script + branch (see sweeps/validation/README.md).
+# Run as a second version with coverage_seed_43.yaml so the bar/curves variance branches fire.
+env_name:
+  - GoNogo-v0                                   # easy: learns enough for reward-threshold color branches
+  - IntervalDiscrimination-v0                   # id_mpn_curve, id_lstm_fb, episode_rewards
+  - MultiSensoryIntegration-v0                  # eval_table
+  - PerceptualDecisionMaking-v0                 # eval_table, trial_appendix
+  - PerceptualDecisionMakingDelayResponse-v0    # eval_table
+  - ProbabilisticReasoning-v0                   # eval_table; 41-dim obs -> trial_appendix's other channel branch
+model:
+  - {model_type: lstm}
+  - {model_type: rnn}
+  - {model_type: mpn}
+  - {model_type: mpn-frozen}
+num_layers: [1, 2, 3]      # heatmap rows + id_lstm_fb conditions
+hidden_dim: [64, 128]      # heatmap columns
+learning_rate: 0.001
+total_frames: 40000
+max_episode_steps: 200
+print_freq: 10             # eval cadence -> metric points to plot
+num_eval_episodes: 5
+device: cpu
+seed: 42
