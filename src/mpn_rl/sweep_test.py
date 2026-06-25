@@ -167,6 +167,35 @@ def test_create_sweep_writes_condor_job() -> None:
     assert f"Queue args from {sweep_dir}/args.txt" in job
 
 
+def test_create_sweep_requests_gpu_for_gpu_device() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        results_dir = Path(directory)
+        config_file = results_dir / "mysweep.yaml"
+        config_file.write_text("model: [{model_type: mpn}]\ndevice: gpu\n")
+        sweep_dir, _ = create_sweep(config_file, None, results_dir)
+        job = (sweep_dir / "sweep.job").read_text()
+    assert "request_gpus   = 1" in job
+
+
+def test_create_sweep_requests_no_gpu_for_cpu_device() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        results_dir = Path(directory)
+        config_file = results_dir / "mysweep.yaml"
+        config_file.write_text("model: [{model_type: mpn}]\ndevice: cpu\n")
+        sweep_dir, _ = create_sweep(config_file, None, results_dir)
+        job = (sweep_dir / "sweep.job").read_text()
+    assert "request_gpus   = 0" in job
+
+
+def test_create_sweep_rejects_mixed_devices() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        results_dir = Path(directory)
+        config_file = results_dir / "mysweep.yaml"
+        config_file.write_text("model: [{model_type: mpn}]\ndevice: [cpu, gpu]\n")
+        with pytest.raises(ValueError, match="cannot mix devices"):
+            create_sweep(config_file, None, results_dir)
+
+
 def test_create_sweep_returns_experiment_count() -> None:
     with tempfile.TemporaryDirectory() as directory:
         results_dir = Path(directory)

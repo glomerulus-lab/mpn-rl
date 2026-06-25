@@ -79,6 +79,10 @@ def create_sweep(
         TrainConfig(**{**experiment, "experiment_name": f"{name}-{i:04d}"})
         for i, experiment in enumerate(experiments_for_sweep(config, name, results_dir))
     ]
+    devices = {experiment.device for experiment in experiments}
+    if len(devices) > 1:
+        raise ValueError("Sweeps cannot mix devices")
+    request_gpus = 1 if devices == {"gpu"} else 0
     sweep_dir.mkdir(parents=True)
     config_paths = []
     for i, experiment in enumerate(experiments):
@@ -98,7 +102,7 @@ def create_sweep(
         f"executable = {run_script.resolve()}\n"
         f"initialdir = {Path.cwd()}\n"
         "request_cpus   = 2\n"
-        "request_gpus   = 1\n"
+        f"request_gpus   = {request_gpus}\n"
         "request_memory = 8GB\n"
         f"output = {sweep_dir}/logs/{name}-$INT(Process,%04d).out\n"
         f"error  = {sweep_dir}/logs/{name}-$INT(Process,%04d).err\n"
