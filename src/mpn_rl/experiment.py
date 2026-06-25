@@ -13,6 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+import pandas as pd
 import torch
 import torch.nn as nn
 import uuid6
@@ -187,3 +188,31 @@ class ExperimentManager:
 
     def __repr__(self) -> str:
         return f"ExperimentManager('{self.experiment_name}', dir='{self.exp_dir}')"
+
+
+def find_experiment_files(
+    filename: str, experiments_dir: Path | None, root: Path = Path()
+) -> list[Path]:
+    """Return `filename` (config.json/metrics.jsonl) for every experiment.
+
+    With experiments_dir given, scan that flat directory directly (a single
+    sweep's experiments/, or an arbitrary tree). Otherwise scan the default
+    layout under root: ad-hoc experiments in experiments/, sweep experiments in
+    results/<name>/experiments/.
+    """
+    if experiments_dir is not None:
+        return list(experiments_dir.glob(f"*/{filename}"))
+    return [
+        *(root / "experiments").glob(f"*/{filename}"),
+        *(root / "results").glob(f"*/experiments/*/{filename}"),
+    ]
+
+
+def load_experiments(root: Path = Path()) -> pd.DataFrame:
+    """One row per experiment: the flat config fields plus a `path` column."""
+    records = []
+    for p in find_experiment_files("config.json", None, root=root):
+        config = json.loads(p.read_text())
+        config["path"] = str(p.parent)
+        records.append(config)
+    return pd.DataFrame(records)

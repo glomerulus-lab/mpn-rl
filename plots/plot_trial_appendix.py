@@ -20,8 +20,8 @@ import neurogym as ngym
 import numpy as np
 import torch
 
+from mpn_rl.experiment import find_experiment_files, load_experiments
 from mpn_rl.models.actor_critic import ActorCriticNet
-from mpn_rl.runs import find_run_files, load_runs
 
 ENV = sys.argv[1] if len(sys.argv) > 1 else "PerceptualDecisionMaking-v0"
 OUTPUT = sys.argv[2] if len(sys.argv) > 2 else "trial_appendix.png"
@@ -65,9 +65,11 @@ def extract_channels(t_obs, actions):
 
 con = duckdb.connect()
 metrics_list = (
-    "[" + ", ".join(f"'{p}'" for p in find_run_files("metrics.jsonl", None)) + "]"
+    "["
+    + ", ".join(f"'{p}'" for p in find_experiment_files("metrics.jsonl", None))
+    + "]"
 )
-con.register("configs", load_runs())
+con.register("configs", load_experiments())
 row = con.execute(
     f"""
     WITH windowed AS (

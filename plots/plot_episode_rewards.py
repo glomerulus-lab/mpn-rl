@@ -6,7 +6,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from mpn_rl.runs import load_runs
+from mpn_rl.experiment import load_experiments
 
 COLORS = {
     "rnn": "#1f77b4",
@@ -38,7 +38,7 @@ def load_jsonl(path):
     return np.array(rewards)
 
 
-runs = load_runs()
+runs = load_experiments()
 
 fig, axes = plt.subplots(1, 2, figsize=(13, 5))
 

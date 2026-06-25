@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from mpn_rl.runs import find_run_files, load_runs
+from mpn_rl.experiment import find_experiment_files, load_experiments
 
 _sweeps_arg = sys.argv[1] if len(sys.argv) > 1 else "ng-sweep-v1"
 SWEEPS = [t.strip() for t in _sweeps_arg.split(",")]
@@ -47,7 +47,9 @@ def smooth(values: np.ndarray, window: int) -> np.ndarray:
 
 con = duckdb.connect()
 metrics_list = (
-    "[" + ", ".join(f"'{p}'" for p in find_run_files("metrics.jsonl", None)) + "]"
+    "["
+    + ", ".join(f"'{p}'" for p in find_experiment_files("metrics.jsonl", None))
+    + "]"
 )
 con.execute(f"""
     CREATE VIEW metrics AS
@@ -58,7 +60,7 @@ con.execute(f"""
         ignore_errors = true
     )
 """)
-con.register("configs", load_runs())
+con.register("configs", load_experiments())
 
 df = con.execute(f"""
     WITH rolling AS (

@@ -20,7 +20,7 @@ import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
 
-from mpn_rl.runs import find_run_files, load_runs
+from mpn_rl.experiment import find_experiment_files, load_experiments
 
 _sweeps_arg = (
     sys.argv[1]
@@ -60,7 +60,9 @@ LONG_LABEL_BREAKS = {
 
 con = duckdb.connect()
 metrics_list = (
-    "[" + ", ".join(f"'{p}'" for p in find_run_files("metrics.jsonl", None)) + "]"
+    "["
+    + ", ".join(f"'{p}'" for p in find_experiment_files("metrics.jsonl", None))
+    + "]"
 )
 con.execute(f"""
     CREATE VIEW metrics AS
@@ -71,7 +73,7 @@ con.execute(f"""
         ignore_errors = true
     )
 """)
-con.register("configs", load_runs())
+con.register("configs", load_experiments())
 
 sweeps_sql = ", ".join(f"'{t}'" for t in SWEEPS)
 

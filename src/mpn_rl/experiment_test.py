@@ -2,10 +2,18 @@ import copy
 import json
 import tempfile
 import uuid
+from pathlib import Path
+from typing import Any
 
+import pandas as pd
 import torch
 
-from mpn_rl.experiment import SCHEMA_VERSION, ExperimentManager
+from mpn_rl.experiment import (
+    SCHEMA_VERSION,
+    ExperimentManager,
+    find_experiment_files,
+    load_experiments,
+)
 
 
 def test_init_creates_checkpoint_and_plot_dirs() -> None:
@@ -112,3 +120,63 @@ def test_append_training_history_writes_row() -> None:
         "oracle_reward": 2.0,
         "pct_oracle": 0.75,
     }
+
+
+def _touch(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("{}")
+
+
+def _write_config(path: Path, config: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(config))
+
+
+def test_find_experiment_files_scans_experiments_and_results() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        _touch(root / "experiments" / "adhoc" / "config.json")
+        _touch(root / "results" / "swp" / "experiments" / "run1" / "config.json")
+        files = find_experiment_files("config.json", None, root=root)
+        names = sorted(p.parent.name for p in files)
+    assert names == ["adhoc", "run1"]
+
+
+def test_find_experiment_files_scans_given_experiments_dir() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        experiments_dir = Path(directory)
+        _touch(experiments_dir / "run1" / "config.json")
+        _touch(experiments_dir / "run2" / "config.json")
+        names = sorted(
+            p.parent.name for p in find_experiment_files("config.json", experiments_dir)
+        )
+    assert names == ["run1", "run2"]
+
+
+def test_load_experiments_adds_path_and_flat_config_columns() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        run_dir = root / "results" / "swp" / "experiments" / "run1"
+        _write_config(
+            run_dir / "config.json", {"model_type": "mpn", "activation": "tanh"}
+        )
+        df = load_experiments(root=root)
+    assert df.loc[0, "model_type"] == "mpn"
+    assert df.loc[0, "activation"] == "tanh"
+    assert df.loc[0, "path"] == str(run_dir)
+
+
+def test_load_experiments_unions_heterogeneous_configs() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        _write_config(
+            root / "experiments" / "mpn-run" / "config.json",
+            {"model_type": "mpn", "mpn_bias": True},
+        )
+        _write_config(
+            root / "experiments" / "lstm-run" / "config.json",
+            {"model_type": "lstm"},
+        )
+        df = load_experiments(root=root).set_index("model_type")
+    assert df.loc["mpn", "mpn_bias"]
+    assert pd.isna(df.loc["lstm", "mpn_bias"])

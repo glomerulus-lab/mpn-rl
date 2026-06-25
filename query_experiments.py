@@ -20,7 +20,7 @@ from pathlib import Path
 import duckdb
 import pandas as pd
 
-from mpn_rl.runs import find_run_files
+from mpn_rl.experiment import find_experiment_files
 
 # ---------------------------------------------------------------------------
 # Live DuckDB connection (reads files directly, always up-to-date)
@@ -34,14 +34,14 @@ def _sql_list(files: list[Path]) -> str:
 def _live_con(experiments_dir: Path | None) -> duckdb.DuckDBPyConnection:
     """Return an in-memory DuckDB with views over live experiment files.
 
-    Scans config.json/metrics.jsonl for every run — ad-hoc runs under
-    experiments/ and sweep runs under results/<name>/experiments/ — or a single
-    flat experiments_dir when one is given.
+    Scans config.json/metrics.jsonl for every experiment — ad-hoc experiments
+    under experiments/ and sweep experiments under results/<name>/experiments/ —
+    or a single flat experiments_dir when one is given.
     """
     con = duckdb.connect()
 
-    metrics_files = find_run_files("metrics.jsonl", experiments_dir)
-    config_files = find_run_files("config.json", experiments_dir)
+    metrics_files = find_experiment_files("metrics.jsonl", experiments_dir)
+    config_files = find_experiment_files("config.json", experiments_dir)
 
     if metrics_files:
         con.execute(f"""
@@ -169,7 +169,7 @@ def cmd_compare(args):
             e.env_name,
             e.learning_rate                           AS lr,
             e.hidden_dim,
-            COUNT(DISTINCT e.experiment_name)         AS num_runs,
+            COUNT(DISTINCT e.experiment_name)         AS num_experiments,
             ROUND(AVG(h.reward), 4)                   AS avg_reward,
             ROUND(STDDEV(h.reward), 4)                AS std_reward
         FROM experiments e
@@ -187,7 +187,9 @@ def cmd_today(args):
     today = datetime.now().strftime("%Y-%m-%d")
     rows = []
 
-    for config_path in sorted(find_run_files("config.json", args.experiments_dir)):
+    for config_path in sorted(
+        find_experiment_files("config.json", args.experiments_dir)
+    ):
         with open(config_path) as f:
             config = json.load(f)
 

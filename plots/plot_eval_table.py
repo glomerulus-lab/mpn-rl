@@ -20,8 +20,8 @@ import matplotlib.pyplot as plt
 
 from mpn_rl.envs import _create_env_from_config
 from mpn_rl.evaluation import _evaluate_actorcritic
+from mpn_rl.experiment import find_experiment_files, load_experiments
 from mpn_rl.models.actor_critic import ActorCriticNet
-from mpn_rl.runs import find_run_files, load_runs
 
 OUTPUT = sys.argv[1] if len(sys.argv) > 1 else "eval_table.png"
 SWEEP = sys.argv[2] if len(sys.argv) > 2 else "ng-sweep-v1"
@@ -49,7 +49,9 @@ ENV_LABELS = {
 
 con = duckdb.connect()
 metrics_list = (
-    "[" + ", ".join(f"'{p}'" for p in find_run_files("metrics.jsonl", None)) + "]"
+    "["
+    + ", ".join(f"'{p}'" for p in find_experiment_files("metrics.jsonl", None))
+    + "]"
 )
 con.execute(f"""
     CREATE VIEW metrics AS
@@ -60,7 +62,7 @@ con.execute(f"""
         ignore_errors = true
     )
 """)
-con.register("configs", load_runs())
+con.register("configs", load_experiments())
 
 env_filter = ", ".join(f"'{e}'" for e in ENVS)
 best_df = con.execute(f"""

@@ -21,8 +21,8 @@ import neurogym as ngym
 import numpy as np
 import torch
 
+from mpn_rl.experiment import find_experiment_files, load_experiments
 from mpn_rl.models.actor_critic import ActorCriticNet
-from mpn_rl.runs import find_run_files, load_runs
 
 SWEEP = sys.argv[1] if len(sys.argv) > 1 else "ng-sweep-v1"
 OUTPUT = sys.argv[2] if len(sys.argv) > 2 else "id_mpn_curve.png"
@@ -47,9 +47,11 @@ MODEL_COLORS = {
 # ---------------------------------------------------------------------------
 
 con = duckdb.connect()
-con.register("configs", load_runs())
+con.register("configs", load_experiments())
 metrics_list = (
-    "[" + ", ".join(f"'{p}'" for p in find_run_files("metrics.jsonl", None)) + "]"
+    "["
+    + ", ".join(f"'{p}'" for p in find_experiment_files("metrics.jsonl", None))
+    + "]"
 )
 
 sweeps_sql = ", ".join(f"'{t}'" for t in SWEEPS)

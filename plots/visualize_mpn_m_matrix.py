@@ -25,15 +25,15 @@ import numpy as np
 import torch
 
 from mpn_rl.envs import TrialEndWrapper
+from mpn_rl.experiment import load_experiments
 from mpn_rl.models.actor_critic import ActorCriticNet
-from mpn_rl.runs import load_runs
 
 
 def _resolve_run_dir(experiment: str) -> Path:
     """Resolve an experiment path or name to its run directory."""
     if Path(experiment).exists():
         return Path(experiment)
-    runs = load_runs()
+    runs = load_experiments()
     matches = runs[runs["experiment_name"] == experiment]
     if matches.empty:
         raise FileNotFoundError(f"No run found for experiment '{experiment}'")
