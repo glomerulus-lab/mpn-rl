@@ -75,6 +75,7 @@ combine-as-imports = true
 target-version = ["py313"]
 
 [tool.mypy]
+plugins = ['pydantic.mypy']
 python_version = "3.13"
 strict = true
 warn_unused_ignores = true

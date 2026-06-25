@@ -52,8 +52,8 @@ class RNNConfig(ModelConfig):
 class MPNConfig(ModelConfig):
     model_type: Literal["mpn"] = "mpn"
     eta_init: float = 0.01
-    lambda_init: float = 0.99
-    lambda_max: float = 0.99
+    lambda_init: float = Field(0.99, ge=0, le=1)
+    lambda_max: float = Field(0.99, ge=0, le=1)
     activation: Literal["relu", "tanh", "sigmoid"] = "tanh"
     mpn_bias: bool = True
 
@@ -92,28 +92,34 @@ class TrainConfig(BaseModel, extra="forbid"):
         str | None,
         tyro.conf.arg(help="Path to JSON file of kwargs passed to neurogym.make()"),
     ] = None
-    max_episode_steps: int = 500
+    max_episode_steps: int = Field(500, ge=1)
     tbptt_len: Annotated[
-        int, tyro.conf.arg(help="Truncated BPTT chunk length (0 = full episode)")
+        int,
+        tyro.conf.arg(help="Truncated BPTT chunk length (0 = full episode)"),
+        Field(ge=0),
     ] = 50
-    total_frames: int = 500000
+    total_frames: int = Field(500000, ge=1)
     num_episodes: Annotated[
-        int, tyro.conf.arg(help="Stop after N episodes (0 = use total_frames)")
+        int,
+        tyro.conf.arg(help="Stop after N episodes (0 = use total_frames)"),
+        Field(ge=0),
     ] = 0
-    hidden_dim: int = 128
-    num_layers: int = 1
+    hidden_dim: int = Field(128, ge=1)
+    num_layers: int = Field(1, ge=1)
     model: Model = Field(default_factory=LSTMConfig)
-    gamma: float = 0.98
-    entropy_coef: float = 0.01
-    value_coef: float = 1.0
+    gamma: float = Field(0.98, ge=0, le=1)
+    entropy_coef: float = Field(0.01, ge=0)
+    value_coef: float = Field(1.0, ge=0)
     normalize_advantages: bool = False
-    learning_rate: float = 1e-4
-    weight_decay: float = 0.0
-    grad_clip: float = 10.0
+    learning_rate: float = Field(1e-4, gt=0)
+    weight_decay: float = Field(0.0, ge=0)
+    grad_clip: float = Field(10.0, gt=0)
     print_freq: Annotated[
-        int, tyro.conf.arg(help="Evaluate and log every N episodes")
+        int,
+        tyro.conf.arg(help="Evaluate and log every N episodes"),
+        Field(ge=1),
     ] = 50
-    num_eval_episodes: int = 10
+    num_eval_episodes: int = Field(10, ge=1)
     device: Literal["cpu", "gpu"] = "cpu"
     tag: str | None = None
     wandb: bool = False
