@@ -32,7 +32,6 @@ class ActorCriticNet(nn.Module):
         lambda_init: float = 0.99,
         num_layers: int = 1,
         mpn_bias: bool = True,
-        lstm_forget_bias: float = 0.0,
     ):
         super().__init__()
         self.model_type = model_type
@@ -46,11 +45,6 @@ class ActorCriticNet(nn.Module):
             self.core = nn.LSTM(
                 input_dim, hidden_dim, num_layers=num_layers, batch_first=True
             )
-            if lstm_forget_bias != 0.0:
-                for name, param in self.core.named_parameters():
-                    if "bias" in name:
-                        n = param.size(0)
-                        param.data[n // 4 : n // 2].fill_(lstm_forget_bias)
         elif model_type in ("mpn", "mpn-frozen"):
             freeze = model_type == "mpn-frozen"
             self.core = nn.ModuleList(

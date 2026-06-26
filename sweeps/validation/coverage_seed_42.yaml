@@ -2,7 +2,7 @@
 # Run as a second version with coverage_seed_43.yaml so the bar/curves variance branches fire.
 env_name:
   - GoNogo-v0                                   # easy: learns enough for reward-threshold color branches
-  - IntervalDiscrimination-v0                   # id_mpn_curve, id_lstm_fb, episode_rewards
+  - IntervalDiscrimination-v0                   # id_mpn_curve, episode_rewards
   - MultiSensoryIntegration-v0                  # eval_table
   - PerceptualDecisionMaking-v0                 # eval_table, trial_appendix
   - PerceptualDecisionMakingDelayResponse-v0    # eval_table
@@ -12,7 +12,7 @@ model:
   - {model_type: rnn}
   - {model_type: mpn}
   - {model_type: mpn-frozen}
-num_layers: [1, 2, 3]      # heatmap rows + id_lstm_fb conditions
+num_layers: [1, 2, 3]      # heatmap rows
 hidden_dim: [64, 128]      # heatmap columns
 learning_rate: 0.001
 total_frames: 40000
