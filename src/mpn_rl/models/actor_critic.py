@@ -3,14 +3,15 @@
 import torch
 import torch.nn as nn
 
-from mpn_rl.nn.mpn import MPN
+from mpn_rl.nn.mpn import MPN, RandomInputProjection
 
 
 class ActorCriticNet(nn.Module):
     """Actor-critic network matching the reference A2C architecture.
 
     Structure:
-        core (RNN / LSTM / MPN)
+        input projection (optional, fixed random, when random_proj_dim is set)
+          → core (RNN / LSTM / MPN)
           → postprocessor: Linear(hidden_dim, 64) + ReLU
           → actor:  Linear(64, 64) → Linear(64, action_dim) → Softmax
           → critic: Linear(64, 64) → Linear(64, 1)
@@ -33,21 +34,29 @@ class ActorCriticNet(nn.Module):
         lambda_init: float = 0.99,
         num_layers: int = 1,
         mpn_bias: bool = True,
+        random_proj_dim: int | None = None,
     ):
         super().__init__()
         self.model_type = model_type
 
+        if random_proj_dim is None:
+            self.input_proj = None
+            core_input_dim = input_dim
+        else:
+            self.input_proj = RandomInputProjection(input_dim, random_proj_dim)
+            core_input_dim = random_proj_dim
+
         if model_type == "rnn":
             self.core = nn.RNN(
-                input_dim, hidden_dim, num_layers=num_layers, batch_first=True
+                core_input_dim, hidden_dim, num_layers=num_layers, batch_first=True
             )
         elif model_type == "lstm":
             self.core = nn.LSTM(
-                input_dim, hidden_dim, num_layers=num_layers, batch_first=True
+                core_input_dim, hidden_dim, num_layers=num_layers, batch_first=True
             )
         elif model_type in ("mpn", "mpn-frozen"):
             self.core = MPN(
-                input_dim,
+                core_input_dim,
                 hidden_dim,
                 num_layers=num_layers,
                 activation=activation,
@@ -74,6 +83,8 @@ class ActorCriticNet(nn.Module):
         )
 
     def forward(self, x: torch.Tensor, state: torch.Tensor | tuple | list | None):
+        if self.input_proj is not None:
+            x = self.input_proj(x)
         if self.model_type in ("rnn", "lstm"):
             out, state = self.core(x.unsqueeze(1), state)  # (batch, 1, hidden)
             out = out.squeeze(1)  # (batch, hidden)

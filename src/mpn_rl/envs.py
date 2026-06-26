@@ -47,5 +47,6 @@ def _load_model_from_config(config, device):
         lambda_init=config.get("lambda_init", 0.99),
         num_layers=config.get("num_layers", 1),
         mpn_bias=config.get("mpn_bias", True),
+        random_proj_dim=config.get("random_proj_dim"),
     ).to(device)
     return model

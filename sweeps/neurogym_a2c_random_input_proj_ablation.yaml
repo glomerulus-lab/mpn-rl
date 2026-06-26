@@ -1,0 +1,26 @@
+env_name:
+  - ContextDecisionMaking-v0
+  - DelayComparison-v0
+  - DelayMatchSample-v0
+  - DelayMatchSampleDistractor1D-v0
+  - DelayPairedAssociation-v0
+  - GoNogo-v0
+  - IntervalDiscrimination-v0
+  - MultiSensoryIntegration-v0
+  - PerceptualDecisionMaking-v0
+  - PerceptualDecisionMakingDelayResponse-v0
+  - ProbabilisticReasoning-v0
+model: {model_type: mpn}
+hidden_dim: 128
+num_layers: [1, 2, 3]
+learning_rate: [0.0001, 0.00001]
+random_proj_dim: [null, 10]
+num_episodes: 200000
+print_freq: 50
+num_eval_episodes: 10
+tbptt_len: 50
+gamma: 0.98
+entropy_coef: 0.01
+seed: [1, 2, 3, 4]
+device: cpu
+

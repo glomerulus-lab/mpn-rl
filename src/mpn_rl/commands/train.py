@@ -113,6 +113,15 @@ class TrainConfig(BaseModel, extra="forbid"):
     ] = 0
     hidden_dim: int = Field(128, ge=1)
     num_layers: int = Field(1, ge=1)
+    random_proj_dim: Annotated[
+        int | None,
+        tyro.conf.arg(
+            help="Project observations through a fixed, untrained random linear "
+            "layer of this dimension before the core (the MPN paper uses 10). "
+            "None = feed raw observations."
+        ),
+        Field(ge=1),
+    ] = None
     model: Model = Field(default_factory=LSTMConfig)
     gamma: float = Field(0.98, ge=0, le=1)
     entropy_coef: float = Field(0.01, ge=0)
@@ -249,6 +258,7 @@ def train_neurogym(args: TrainConfig):
         action_dim=action_dim,
         hidden_dim=args.hidden_dim,
         num_layers=args.num_layers,
+        random_proj_dim=args.random_proj_dim,
         **args.model.model_dump(),
     ).to(device)
 
