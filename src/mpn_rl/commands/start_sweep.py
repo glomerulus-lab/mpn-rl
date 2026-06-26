@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Annotated
 
 import tyro
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from mpn_rl import git
 from mpn_rl.sweep import create_sweep
@@ -19,6 +19,14 @@ class StartSweepCommand(BaseModel):
         bool,
         tyro.conf.arg(help="Submit even if the working tree has uncommitted changes"),
     ] = False
+    request_memory_gb: Annotated[
+        int, tyro.conf.arg(help="Per-job memory request in GB"), Field(ge=1)
+    ] = 2
+    max_materialize: Annotated[
+        int,
+        tyro.conf.arg(help="Max jobs materialized/running at once"),
+        Field(ge=1),
+    ] = 50
 
 
 def start_sweep(command: StartSweepCommand) -> None:
@@ -29,9 +37,17 @@ def start_sweep(command: StartSweepCommand) -> None:
         print(git.status())
         return
     sweep_dir, count = create_sweep(
-        command.config_file, command.name, command.results_dir
+        command.config_file,
+        command.name,
+        command.results_dir,
+        request_memory_gb=command.request_memory_gb,
+        max_materialize=command.max_materialize,
     )
-    answer = input(f"Submit {count} experiments from {sweep_dir}? [y/N] ")
+    answer = input(
+        f"Submit {count} experiments from {sweep_dir} "
+        f"(up to {command.max_materialize} running at once, "
+        f"{command.request_memory_gb}GB each)? [y/N] "
+    )
     if answer.strip().lower() != "y":
         print(f"Not submitted. Sweep is at {sweep_dir}")
         return

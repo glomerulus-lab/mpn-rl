@@ -67,7 +67,11 @@ def snapshot_code(sweep_dir: Path) -> Path:
 
 
 def create_sweep(
-    config_file: Path, sweep_name: str | None, results_dir: Path
+    config_file: Path,
+    sweep_name: str | None,
+    results_dir: Path,
+    request_memory_gb: int = 2,
+    max_materialize: int = 50,
 ) -> tuple[Path, int]:
     config = yaml.safe_load(config_file.read_text())
     name = sweep_name if sweep_name is not None else config_file.stem
@@ -103,7 +107,7 @@ def create_sweep(
         f"initialdir = {Path.cwd()}\n"
         "request_cpus   = 1\n"
         f"request_gpus   = {request_gpus}\n"
-        "request_memory = 8GB\n"
+        f"request_memory = {request_memory_gb}GB\n"
         # Training is single-threaded sequential RL with tiny nets; pin BLAS/Torch
         # threads to 1 so a job can't oversubscribe its slot (libs otherwise size
         # threads to the whole machine, not the Condor allocation).
@@ -112,7 +116,7 @@ def create_sweep(
         f"error  = {sweep_dir}/logs/{name}-$INT(Process,%04d).err\n"
         f"log    = {sweep_dir}/logs/{name}-$INT(Process,%04d).log\n"
         "+CSCI_GrpDesktop = true\n"
-        "max_materialize = 50\n"
+        f"max_materialize = {max_materialize}\n"
         "arguments = $(args)\n"
         f"Queue args from {sweep_dir}/args.txt\n"
     )
