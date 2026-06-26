@@ -282,7 +282,7 @@ def train_neurogym(args: TrainConfig):
         not use_ep_limit and total_frames < args.total_frames
     ):
         obs, _ = env.reset(seed=random.randint(0, 10_000_000))
-        h = None
+        state = None
         ep_reward = 0.0
         actor_loss = critic_loss = total_loss = None
 
@@ -296,7 +296,7 @@ def train_neurogym(args: TrainConfig):
 
         for step in range(args.max_episode_steps):
             obs_t = torch.FloatTensor(obs).unsqueeze(0).to(device)
-            policy_dist, value, h = model(obs_t, h)
+            policy_dist, value, state = model(obs_t, state)
             action = int(
                 np.random.choice(
                     action_dim, p=policy_dist.detach().cpu().numpy().squeeze()
@@ -322,7 +322,7 @@ def train_neurogym(args: TrainConfig):
             if chunk_full or done or step == args.max_episode_steps - 1:
                 with torch.no_grad():
                     obs_t = torch.FloatTensor(obs).unsqueeze(0).to(device)
-                    _, next_value, _ = model(obs_t, h)
+                    _, next_value, _ = model(obs_t, state)
                     next_value = next_value.squeeze().item() * (1.0 - float(done))
 
                 returns = _compute_returns_episode(
@@ -351,13 +351,13 @@ def train_neurogym(args: TrainConfig):
                 torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
                 optimizer.step()
 
-                # Detach h to cut gradient graph between chunks
-                if isinstance(h, tuple):
-                    h = tuple(x.detach() for x in h)
-                elif isinstance(h, list):
-                    h = [x.detach() for x in h]
-                elif h is not None:
-                    h = h.detach()
+                # Detach state to cut gradient graph between chunks
+                if isinstance(state, tuple):
+                    state = tuple(s.detach() for s in state)
+                elif isinstance(state, list):
+                    state = [s.detach() for s in state]
+                elif state is not None:
+                    state = state.detach()
 
                 (
                     chunk_log_probs,

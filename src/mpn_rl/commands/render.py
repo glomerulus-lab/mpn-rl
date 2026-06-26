@@ -56,13 +56,13 @@ def render_to_plot(args: RenderConfig):
 
     with torch.no_grad():
         obs, _ = env.reset(seed=0)
-        h = None
+        state = None
         for _ in tqdm.tqdm(
             range(args.max_episode_steps), desc="Recording", unit="step"
         ):
             observations.append(obs.copy())
             x = torch.FloatTensor(obs).unsqueeze(0)
-            policy_dist, _, h = model(x, h)
+            policy_dist, _, state = model(x, state)
             action = int(policy_dist.squeeze(0).argmax().item())
             obs, reward, terminated, truncated, _ = env.step(action)
             actions.append(action)

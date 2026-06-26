@@ -17,11 +17,11 @@ def _evaluate_actorcritic(model, env_factory, num_episodes, max_steps, seed, dev
             if seed is not None:
                 env.unwrapped.rng = np.random.RandomState(seed + ep)
             obs, _ = env.reset()
-            h = None
+            state = None
             ep_reward = 0.0
             for _ in range(max_steps):
                 obs_t = torch.FloatTensor(obs).unsqueeze(0).to(device)
-                policy_dist, _, h = model(obs_t, h)
+                policy_dist, _, state = model(obs_t, state)
                 action = int(policy_dist.argmax(-1).item())
                 obs, reward, terminated, truncated, _ = env.step(action)
                 ep_reward += reward

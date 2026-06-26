@@ -15,9 +15,10 @@ class ActorCriticNet(nn.Module):
           → actor:  Linear(64, 64) → Linear(64, action_dim) → Softmax
           → critic: Linear(64, 64) → Linear(64, 1)
 
-    forward(x, h) → (policy_dist, value, h_new)
-        x:    (batch, input_dim)
-        h:    hidden state (None to reset)
+    forward(x, state) → (policy_dist, value, new_state)
+        x:     (batch, input_dim)
+        state: core recurrent state (None to reset). For rnn it is the hidden
+               tensor, for lstm the (h, c) tuple, for mpn a list of M matrices.
     """
 
     def __init__(
@@ -78,18 +79,18 @@ class ActorCriticNet(nn.Module):
             nn.Linear(64, 1),
         )
 
-    def forward(self, x: torch.Tensor, h):
+    def forward(self, x: torch.Tensor, state: torch.Tensor | tuple | list | None):
         if self.model_type in ("rnn", "lstm"):
-            out, h = self.core(x.unsqueeze(1), h)  # (batch, 1, hidden)
+            out, state = self.core(x.unsqueeze(1), state)  # (batch, 1, hidden)
             out = out.squeeze(1)  # (batch, hidden)
-        else:  # MPN / MPN-frozen — h is a list of M matrices, one per layer
-            if h is None:
-                h = [None] * self.num_layers
-            new_h = []
+        else:  # MPN / MPN-frozen — state is a list of M matrices, one per layer
+            if state is None:
+                state = [None] * self.num_layers
+            new_state = []
             out = x
-            for layer, h_i in zip(self.core, h):
-                out, h_i_new = layer(out, h_i)
-                new_h.append(h_i_new)
-            h = new_h
+            for layer, state_i in zip(self.core, state):
+                out, state_i_new = layer(out, state_i)
+                new_state.append(state_i_new)
+            state = new_state
         out = self.postprocessor(out)
-        return self.actor(out), self.critic(out), h
+        return self.actor(out), self.critic(out), state
