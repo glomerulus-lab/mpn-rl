@@ -88,7 +88,7 @@ class MPNLayer(nn.Module):
         activation: str = "tanh",
         bias: bool = True,
         freeze_plasticity: bool = False,
-        lambda_max: float = 0.95,
+        lambda_max: float = 0.99,
         eta_init: float = 0.01,
         lambda_init: float = 0.99,
     ):
@@ -220,95 +220,12 @@ class MPNLayer(nn.Module):
         return h, M_new
 
 
-class MPN(nn.Module):
-    """
-    Complete Multi-Plasticity Network for RL.
-
-    This is a simple 2-layer network:
-    - Layer 1: MPN layer with Hebbian plasticity
-    - Layer 2: Linear readout (returns hidden states for use by policy/value heads)
-
-    The network maintains internal state (M matrix) that persists across time steps
-    within an episode but resets between episodes.
-
-    Args:
-        input_dim: Dimension of observations
-        hidden_dim: Dimension of hidden layer
-        activation: Activation function for hidden layer
-        freeze_plasticity: Disable Hebbian updates
-        lambda_max: Maximum value for lambda clamping (default 0.99)
-
-    Example:
-        >>> mpn = MPN(input_dim=4, hidden_dim=64)
-        >>> obs = torch.randn(32, 4)  # batch of 32 observations
-        >>>
-        >>> # Initialize episode
-        >>> state = mpn.init_state(batch_size=32)
-        >>>
-        >>> # Step through episode
-        >>> for t in range(episode_length):
-        >>>     hidden, state = mpn(obs[t], state)
-        >>>     # Use hidden for policy/value computation
-    """
-
-    def __init__(
-        self,
-        input_dim: int,
-        hidden_dim: int,
-        activation: str = "tanh",
-        freeze_plasticity: bool = False,
-        lambda_max: float = 0.99,
-        eta_init: float = 0.01,
-        lambda_init: float = 0.99,
-        bias: bool = True,
-    ):
-        super().__init__()
-
-        self.input_dim = input_dim
-        self.hidden_dim = hidden_dim
-        self.freeze_plasticity = freeze_plasticity
-
-        # MPN layer
-        self.mpn_layer = MPNLayer(
-            input_dim=input_dim,
-            hidden_dim=hidden_dim,
-            activation=activation,
-            bias=bias,
-            freeze_plasticity=freeze_plasticity,
-            lambda_max=lambda_max,
-            eta_init=eta_init,
-            lambda_init=lambda_init,
-        )
-
-    def init_state(
-        self, batch_size: int, device: Optional[torch.device] = None
-    ) -> torch.Tensor:
-        """Initialize the M matrix for a new episode."""
-        return self.mpn_layer.init_state(batch_size, device)
-
-    def forward(
-        self, x: torch.Tensor, state: Optional[torch.Tensor] = None
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        Forward pass through the MPN.
-
-        Args:
-            x: Observations of shape (batch_size, input_dim)
-            state: Current M matrix. If None, initializes to zeros.
-
-        Returns:
-            hidden: Hidden representations of shape (batch_size, hidden_dim)
-            new_state: Updated M matrix
-        """
-        return self.mpn_layer(x, state)
-
-
 if __name__ == "__main__":
     # Simple test
     print("Testing MPN module...")
 
-    # Create MPN
-    mpn = MPN(input_dim=4, hidden_dim=8)
+    # Create MPN layer
+    mpn = MPNLayer(input_dim=4, hidden_dim=8)
 
     # Test single step
     batch_size = 2

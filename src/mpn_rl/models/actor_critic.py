@@ -3,7 +3,7 @@
 import torch
 import torch.nn as nn
 
-from mpn_rl.nn.mpn import MPN
+from mpn_rl.nn.mpn import MPNLayer
 
 
 class ActorCriticNet(nn.Module):
@@ -49,7 +49,7 @@ class ActorCriticNet(nn.Module):
             freeze = model_type == "mpn-frozen"
             self.core = nn.ModuleList(
                 [
-                    MPN(
+                    MPNLayer(
                         input_dim if i == 0 else hidden_dim,
                         hidden_dim,
                         activation=activation,
