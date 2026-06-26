@@ -3,7 +3,7 @@
 import torch
 import torch.nn as nn
 
-from mpn_rl.nn.mpn import MPNLayer
+from mpn_rl.nn.mpn import MPN
 
 
 class ActorCriticNet(nn.Module):
@@ -36,7 +36,6 @@ class ActorCriticNet(nn.Module):
     ):
         super().__init__()
         self.model_type = model_type
-        self.num_layers = num_layers
 
         if model_type == "rnn":
             self.core = nn.RNN(
@@ -47,21 +46,16 @@ class ActorCriticNet(nn.Module):
                 input_dim, hidden_dim, num_layers=num_layers, batch_first=True
             )
         elif model_type in ("mpn", "mpn-frozen"):
-            freeze = model_type == "mpn-frozen"
-            self.core = nn.ModuleList(
-                [
-                    MPNLayer(
-                        input_dim if i == 0 else hidden_dim,
-                        hidden_dim,
-                        activation=activation,
-                        lambda_max=lambda_max,
-                        eta_init=eta_init,
-                        lambda_init=lambda_init,
-                        freeze_plasticity=freeze,
-                        bias=mpn_bias,
-                    )
-                    for i in range(num_layers)
-                ]
+            self.core = MPN(
+                input_dim,
+                hidden_dim,
+                num_layers=num_layers,
+                activation=activation,
+                lambda_max=lambda_max,
+                eta_init=eta_init,
+                lambda_init=lambda_init,
+                freeze_plasticity=(model_type == "mpn-frozen"),
+                bias=mpn_bias,
             )
         else:
             raise ValueError(f"Unknown model_type: {model_type!r}")
@@ -83,14 +77,7 @@ class ActorCriticNet(nn.Module):
         if self.model_type in ("rnn", "lstm"):
             out, state = self.core(x.unsqueeze(1), state)  # (batch, 1, hidden)
             out = out.squeeze(1)  # (batch, hidden)
-        else:  # MPN / MPN-frozen — state is a list of M matrices, one per layer
-            if state is None:
-                state = [None] * self.num_layers
-            new_state = []
-            out = x
-            for layer, state_i in zip(self.core, state):
-                out, state_i_new = layer(out, state_i)
-                new_state.append(state_i_new)
-            state = new_state
+        else:  # MPN / MPN-frozen — state is a list of per-layer M matrices
+            out, state = self.core(x, state)
         out = self.postprocessor(out)
         return self.actor(out), self.critic(out), state

@@ -220,6 +220,82 @@ class MPNLayer(nn.Module):
         return h, M_new
 
 
+class MPN(nn.Module):
+    """
+    Multilayer MPN core: a stack of MPNLayers threading per-layer plastic state.
+
+    Processes a single timestep (one step of an unrolled recurrence): maps x of
+    shape (batch, input_dim) to (batch, hidden_dim), carrying a list of per-layer
+    M matrices as state. The caller loops over time and threads the returned state
+    back in. Holds no readout heads.
+
+    Args:
+        input_dim: Dimension of the input features.
+        hidden_dim: Output dimension of every layer (and the input of every layer
+            after the first).
+        num_layers: Number of stacked MPN layers.
+        activation: Activation applied in each MPN layer.
+        lambda_max: Upper clamp on each layer's decay rate lambda.
+        eta_init: Initial Hebbian write strength eta.
+        lambda_init: Initial decay rate lambda.
+        freeze_plasticity: Disable Hebbian updates (M stays zero).
+        bias: Whether each MPN layer uses a bias term.
+    """
+
+    def __init__(
+        self,
+        input_dim: int,
+        hidden_dim: int,
+        num_layers: int = 1,
+        activation: str = "tanh",
+        lambda_max: float = 0.99,
+        eta_init: float = 0.01,
+        lambda_init: float = 0.99,
+        freeze_plasticity: bool = False,
+        bias: bool = True,
+    ):
+        super().__init__()
+        self.num_layers = num_layers
+        self.layers = nn.ModuleList(
+            [
+                MPNLayer(
+                    input_dim if i == 0 else hidden_dim,
+                    hidden_dim,
+                    activation=activation,
+                    bias=bias,
+                    freeze_plasticity=freeze_plasticity,
+                    lambda_max=lambda_max,
+                    eta_init=eta_init,
+                    lambda_init=lambda_init,
+                )
+                for i in range(num_layers)
+            ]
+        )
+
+    def forward(
+        self, x: torch.Tensor, state: Optional[list] = None
+    ) -> Tuple[torch.Tensor, list]:
+        """
+        Step every layer once, threading each layer's M matrix.
+
+        Args:
+            x: Input of shape (batch, input_dim).
+            state: List of per-layer M matrices, or None to reset every layer.
+
+        Returns:
+            out: Output activations of shape (batch, hidden_dim).
+            new_state: Updated list of per-layer M matrices.
+        """
+        if state is None:
+            state = [None] * self.num_layers
+        new_state = []
+        out = x
+        for layer, state_i in zip(self.layers, state):
+            out, state_i_new = layer(out, state_i)
+            new_state.append(state_i_new)
+        return out, new_state
+
+
 if __name__ == "__main__":
     # Simple test
     print("Testing MPN module...")
