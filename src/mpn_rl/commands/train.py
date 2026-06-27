@@ -20,7 +20,7 @@ import mpn_rl.temporal_order_env  # noqa: F401 — registers TemporalOrder-v0 / 
 from mpn_rl.device import get_device
 from mpn_rl.envs import TrialEndWrapper
 from mpn_rl.evaluation import _evaluate_actorcritic
-from mpn_rl.experiment import ExperimentManager
+from mpn_rl.experiment import ExperimentManager, MetricsRow
 from mpn_rl.models.actor_critic import ActorCriticNet
 from mpn_rl.oracle_agents import get_oracle_reward
 
@@ -187,6 +187,16 @@ def resolve_train_config(args: list[str]) -> TrainConfig:
         config=first.config, train_config=load_train_config(first.config)
     )
     return tyro.cli(TrainCommand, args=args, default=default).train_config
+
+
+class A2CMetricsRow(MetricsRow):
+    frame: int
+    episode: int
+    reward: float
+    length: int
+    loss: float
+    oracle_reward: float
+    pct_oracle: float | None
 
 
 def train_neurogym(args: TrainConfig):
@@ -431,14 +441,16 @@ def train_neurogym(args: TrainConfig):
             last_actor_loss = actor_loss.item() if actor_loss is not None else 0.0
             last_critic_loss = critic_loss.item() if critic_loss is not None else 0.0
 
-            exp_manager.append_training_history(
-                total_frames,
-                float(eval_reward),
-                step + 1,
-                last_actor_loss,
-                oracle_reward=float(oracle_reward),
-                pct_oracle=float(pct_oracle) if not math.isnan(pct_oracle) else None,
-                episode=episode,
+            exp_manager.append_metrics(
+                A2CMetricsRow(
+                    frame=total_frames,
+                    episode=episode,
+                    reward=eval_reward,
+                    length=step + 1,
+                    loss=last_actor_loss,
+                    oracle_reward=oracle_reward,
+                    pct_oracle=None if math.isnan(pct_oracle) else pct_oracle,
+                )
             )
 
             tqdm.tqdm.write(

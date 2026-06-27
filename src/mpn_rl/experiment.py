@@ -17,10 +17,15 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import uuid6
+from pydantic import BaseModel
 
 from mpn_rl.git import git_revision
 
 SCHEMA_VERSION = 1
+
+
+class MetricsRow(BaseModel, extra="forbid"):
+    pass
 
 
 class ExperimentManager:
@@ -152,37 +157,11 @@ class ExperimentManager:
         metadata: Dict[str, Any] = checkpoint.get("metadata", {})
         return metadata
 
-    def append_training_history(
-        self,
-        frames: int,
-        reward: float,
-        length: int,
-        loss: float,
-        oracle_reward: Optional[float] = None,
-        pct_oracle: Optional[float] = None,
-        episode: Optional[int] = None,
-    ) -> None:
-        """Append a single eval step to metrics.jsonl."""
+    def append_metrics(self, row: MetricsRow) -> None:
+        """Append one metrics row to metrics.jsonl, tagged with the experiment name."""
+        line = {"experiment_name": self.experiment_name, **row.model_dump(mode="json")}
         with open(self.metrics_path, "a") as f:
-            f.write(
-                json.dumps(
-                    {
-                        "experiment_name": self.experiment_name,
-                        "frame": int(frames),
-                        "episode": int(episode) if episode is not None else None,
-                        "reward": float(reward),
-                        "length": int(length),
-                        "loss": float(loss),
-                        "oracle_reward": (
-                            float(oracle_reward) if oracle_reward is not None else None
-                        ),
-                        "pct_oracle": (
-                            float(pct_oracle) if pct_oracle is not None else None
-                        ),
-                    }
-                )
-                + "\n"
-            )
+            f.write(json.dumps(line) + "\n")
 
     def __repr__(self) -> str:
         return f"ExperimentManager('{self.experiment_name}', dir='{self.exp_dir}')"

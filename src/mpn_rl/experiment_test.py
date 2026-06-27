@@ -11,6 +11,7 @@ import torch
 from mpn_rl.experiment import (
     SCHEMA_VERSION,
     ExperimentManager,
+    MetricsRow,
     find_experiment_files,
     load_experiments,
 )
@@ -95,28 +96,19 @@ def test_load_model_skips_optimizer_when_not_saved() -> None:
     torch.testing.assert_close(optimizer.state_dict(), before)
 
 
-def test_append_training_history_writes_row() -> None:
+def test_append_metrics_writes_row_tagged_with_experiment_name() -> None:
+    class _Row(MetricsRow):
+        frame: int
+        loss: float
+
     with tempfile.TemporaryDirectory() as directory:
         manager = ExperimentManager(directory, "exp")
-        manager.append_training_history(
-            frames=100,
-            reward=1.5,
-            length=10,
-            loss=0.2,
-            oracle_reward=2.0,
-            pct_oracle=0.75,
-            episode=3,
-        )
+        manager.append_metrics(_Row(frame=100, loss=0.2))
         rows = manager.metrics_path.read_text().splitlines()
     assert json.loads(rows[0]) == {
         "experiment_name": manager.experiment_name,
         "frame": 100,
-        "episode": 3,
-        "reward": 1.5,
-        "length": 10,
         "loss": 0.2,
-        "oracle_reward": 2.0,
-        "pct_oracle": 0.75,
     }
 
 
