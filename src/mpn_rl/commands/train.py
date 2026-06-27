@@ -143,9 +143,9 @@ class TrainConfig(BaseModel, extra="forbid"):
     grad_clip: float = Field(10.0, gt=0)
 
     # Evaluation / logging cadence
-    print_freq: Annotated[
+    eval_every_n_episodes: Annotated[
         int,
-        tyro.conf.arg(help="Evaluate and log every N episodes"),
+        tyro.conf.arg(help="Evaluate/log/checkpoint every N episodes"),
         Field(ge=1),
     ] = 50
     num_eval_episodes: int = Field(10, ge=1)
@@ -401,7 +401,7 @@ def train_neurogym(args: TrainConfig):
         episode += 1
         pbar.update((episode if use_ep_limit else total_frames) - pbar.n)
 
-        if episode - last_eval_episode >= args.print_freq:
+        if episode - last_eval_episode >= args.eval_every_n_episodes:
             last_eval_episode = episode
             eval_seed = int(_eval_rng.integers(0, 2**31))
 

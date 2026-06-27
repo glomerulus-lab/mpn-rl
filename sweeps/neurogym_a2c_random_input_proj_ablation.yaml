@@ -16,7 +16,7 @@ num_layers: [1, 2, 3]
 learning_rate: [0.0001, 0.00001]
 random_proj_dim: [null, 10]
 num_episodes: 200000
-print_freq: 50
+eval_every_n_episodes: 50
 num_eval_episodes: 10
 tbptt_len: 50
 gamma: 0.98

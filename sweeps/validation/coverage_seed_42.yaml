@@ -17,7 +17,7 @@ hidden_dim: [64, 128]      # heatmap columns
 learning_rate: 0.001
 total_frames: 40000
 max_episode_steps: 200
-print_freq: 10             # eval cadence -> metric points to plot
+eval_every_n_episodes: 10  # eval cadence -> metric points to plot
 num_eval_episodes: 5
 device: cpu
 seed: 42

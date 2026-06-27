@@ -46,7 +46,7 @@ EXCLUDED_HPARAM_KEYS = {
     "device",
     "checkpoint_freq",
     "max_checkpoints",
-    "print_freq",
+    "eval_every_n_episodes",
     "num_eval_episodes",
     "num_envs",
     "frames_per_batch",
