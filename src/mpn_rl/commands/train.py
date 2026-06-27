@@ -436,7 +436,6 @@ def train_neurogym(args: TrainConfig):
                 float(eval_reward),
                 step + 1,
                 last_actor_loss,
-                0.0,
                 oracle_reward=float(oracle_reward),
                 pct_oracle=float(pct_oracle) if not math.isnan(pct_oracle) else None,
                 episode=episode,

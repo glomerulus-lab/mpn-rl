@@ -103,7 +103,6 @@ def test_append_training_history_writes_row() -> None:
             reward=1.5,
             length=10,
             loss=0.2,
-            epsilon=0.0,
             oracle_reward=2.0,
             pct_oracle=0.75,
             episode=3,
@@ -116,7 +115,6 @@ def test_append_training_history_writes_row() -> None:
         "reward": 1.5,
         "length": 10,
         "loss": 0.2,
-        "epsilon": 0.0,
         "oracle_reward": 2.0,
         "pct_oracle": 0.75,
     }

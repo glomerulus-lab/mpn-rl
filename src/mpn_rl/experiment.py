@@ -158,7 +158,6 @@ class ExperimentManager:
         reward: float,
         length: int,
         loss: float,
-        epsilon: float,
         oracle_reward: Optional[float] = None,
         pct_oracle: Optional[float] = None,
         episode: Optional[int] = None,
@@ -174,7 +173,6 @@ class ExperimentManager:
                         "reward": float(reward),
                         "length": int(length),
                         "loss": float(loss),
-                        "epsilon": float(epsilon),
                         "oracle_reward": (
                             float(oracle_reward) if oracle_reward is not None else None
                         ),

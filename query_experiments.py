@@ -46,7 +46,7 @@ def _live_con(experiments_dir: Path | None) -> duckdb.DuckDBPyConnection:
     if metrics_files:
         con.execute(f"""
             CREATE VIEW training_history AS
-            SELECT experiment_name, frame, reward, length, loss, epsilon,
+            SELECT experiment_name, frame, reward, length, loss,
                    oracle_reward, pct_oracle
             FROM read_ndjson(
                 {_sql_list(metrics_files)},
@@ -56,7 +56,6 @@ def _live_con(experiments_dir: Path | None) -> duckdb.DuckDBPyConnection:
                     reward:          'DOUBLE',
                     length:          'INTEGER',
                     loss:            'DOUBLE',
-                    epsilon:         'DOUBLE',
                     oracle_reward:   'DOUBLE',
                     pct_oracle:      'DOUBLE'
                 }},
@@ -68,7 +67,7 @@ def _live_con(experiments_dir: Path | None) -> duckdb.DuckDBPyConnection:
             CREATE VIEW training_history AS
             SELECT NULL::VARCHAR as experiment_name, NULL::INTEGER as frame,
                    NULL::DOUBLE  as reward,          NULL::INTEGER as length,
-                   NULL::DOUBLE  as loss,            NULL::DOUBLE  as epsilon,
+                   NULL::DOUBLE  as loss,
                    NULL::DOUBLE  as oracle_reward,   NULL::DOUBLE  as pct_oracle
             WHERE false
         """)
