@@ -19,10 +19,12 @@ import mpn_rl
 import mpn_rl.temporal_order_env  # noqa: F401 — registers TemporalOrder-v0 / TemporalOrder10-v0 / TemporalOrder20-v0
 from mpn_rl.device import get_device
 from mpn_rl.envs import TrialEndWrapper
-from mpn_rl.evaluation import _evaluate_actorcritic
+from mpn_rl.evaluation import _evaluate_actorcritic, evaluate_supervised
 from mpn_rl.experiment import ExperimentManager, MetricsRow
 from mpn_rl.models.actor_critic import ActorCriticNet
+from mpn_rl.models.supervised import SupervisedNet
 from mpn_rl.oracle_agents import get_oracle_reward
+from mpn_rl.supervised_data import MaskedSequenceSampler
 
 
 def _seed_rngs(seed: int) -> None:
@@ -118,8 +120,47 @@ class A2CConfig(AlgorithmConfig):
     num_eval_episodes: int = Field(10, ge=1)
 
 
+class SupervisedConfig(AlgorithmConfig):
+    algorithm: Literal["supervised"] = "supervised"
+
+    # Data
+    sequence_len: int = Field(100, ge=1)
+    batch_size: int = Field(32, ge=1)
+
+    # Budget / stopping
+    max_iters: int = Field(100000, ge=1)
+    min_iters: Annotated[
+        int,
+        tyro.conf.arg(
+            help="Minimum iterations before target_accuracy can stop training"
+        ),
+        Field(ge=0),
+    ] = 2000
+    target_accuracy: Annotated[
+        float | None,
+        tyro.conf.arg(
+            help="Stop once eval accuracy reaches this (None = run to max_iters)"
+        ),
+        Field(gt=0, le=1),
+    ] = 0.99
+
+    # Regularization
+    l1_coef: float = Field(1e-4, ge=0)
+
+    # Evaluation / logging cadence
+    eval_every_n_iters: Annotated[
+        int,
+        tyro.conf.arg(help="Evaluate/log/checkpoint every N iterations"),
+        Field(ge=1),
+    ] = 250
+    num_eval_sequences: int = Field(1000, ge=1)
+
+
 Algorithm = Annotated[
-    Union[Annotated[A2CConfig, tyro.conf.subcommand("a2c")]],
+    Union[
+        Annotated[A2CConfig, tyro.conf.subcommand("a2c")],
+        Annotated[SupervisedConfig, tyro.conf.subcommand("supervised")],
+    ],
     Field(discriminator="algorithm"),
 ]
 
@@ -216,7 +257,197 @@ class A2CMetricsRow(MetricsRow):
     pct_oracle: float | None
 
 
+class SupervisedMetricsRow(MetricsRow):
+    frame: int
+    iteration: int
+    loss: float
+    accuracy: float
+
+
 def train_neurogym(args: TrainConfig):
+    if isinstance(args.algorithm, SupervisedConfig):
+        train_supervised(args)
+    else:
+        train_a2c(args)
+
+
+def _masked_cross_entropy(
+    logits: torch.Tensor, targets: torch.Tensor, mask: torch.Tensor
+) -> torch.Tensor:
+    """Cross-entropy averaged over the True positions of a (batch, time) mask."""
+    flat = F.cross_entropy(
+        logits.reshape(-1, logits.shape[-1]), targets.reshape(-1), reduction="none"
+    )
+    return flat[mask.reshape(-1)].mean()
+
+
+def _l1_penalty(model: torch.nn.Module) -> torch.Tensor:
+    # Only multi-element params (weight matrices, biases); excludes the scalar
+    # plasticity params eta/lambda, matching the reference implementation:
+    # https://github.com/kaitken17/mpn/blob/6147f2b/net_utils.py#L189-L204
+    return sum(
+        p.abs().sum() for p in model.parameters() if p.requires_grad and p.numel() > 1
+    )
+
+
+def train_supervised(args: TrainConfig):
+    """Train on a NeuroGym env with per-timestep supervised cross-entropy.
+
+    Assembles fixed-length sequences, rolls recurrent state across trials within a
+    sequence, and scores cross-entropy / accuracy over each env's response-period
+    mask (the steps where a response is judged; fixation holding is not scored).
+    """
+    algorithm = args.algorithm
+    _seed_rngs(args.seed)
+    torch.set_num_threads(1)
+    print("=" * 60)
+    print("Training with supervised cross-entropy on NeuroGym")
+    print("=" * 60)
+    print(f"Code:       {Path(mpn_rl.__file__).parent}")
+
+    exp_manager = ExperimentManager(args.experiments_dir, args.experiment_name)
+    print(f"Experiment: {exp_manager.experiment_name}")
+    print(f"Directory:  {exp_manager.exp_dir}\n")
+
+    env_kwargs = {}
+    if args.env_config:
+        with open(args.env_config) as f:
+            env_kwargs = json.load(f)
+
+    config = args.model_dump()
+    # Keep config.json flat: readers still expect top-level model/algorithm fields.
+    config.update(config.pop("model"))
+    config.update(config.pop("algorithm"))
+    config["experiment_name"] = exp_manager.experiment_name
+    config["experiment_id"] = exp_manager.experiment_id
+    config["experiments_dir"] = str(
+        args.experiments_dir
+    )  # Path -> str for JSON + wandb
+    config["command"] = "train-neurogym"
+    config["env_kwargs"] = env_kwargs
+    exp_manager.save_config(config)
+
+    device = get_device(args.device)
+    print()
+
+    train_sampler = MaskedSequenceSampler(
+        args.env_name,
+        env_kwargs,
+        algorithm.batch_size,
+        algorithm.sequence_len,
+        seed=args.seed,
+    )
+    eval_sampler = MaskedSequenceSampler(
+        args.env_name,
+        env_kwargs,
+        algorithm.batch_size,
+        algorithm.sequence_len,
+        seed=args.seed + 10_000,
+    )
+
+    input_dim = train_sampler.input_dim
+    num_classes = train_sampler.num_classes
+
+    print(f"Environment:  {args.env_name}")
+    print(f"Obs dim: {input_dim}, Classes: {num_classes}")
+    print(f"Model: {args.model.model_type.upper()}, hidden_dim={args.hidden_dim}")
+    print(f"lr={args.learning_rate}, l1_coef={algorithm.l1_coef}")
+    print(f"max_iters={algorithm.max_iters}\n")
+
+    model = SupervisedNet(
+        input_dim=input_dim,
+        num_classes=num_classes,
+        hidden_dim=args.hidden_dim,
+        num_layers=args.num_layers,
+        random_proj_dim=args.random_proj_dim,
+        **args.model.model_dump(),
+    ).to(device)
+
+    optimizer = torch.optim.Adam(
+        filter(lambda p: p.requires_grad, model.parameters()),
+        lr=args.learning_rate,
+        weight_decay=args.weight_decay,
+    )
+
+    print("Starting training...")
+    print("-" * 60)
+
+    best_accuracy = -float("inf")
+    samples_per_iter = algorithm.batch_size * algorithm.sequence_len
+    pbar = tqdm.tqdm(total=algorithm.max_iters, desc="Iters", unit="it")
+
+    for iteration in range(1, algorithm.max_iters + 1):
+        inputs_np, targets_np, mask_np = train_sampler.sample()
+        inputs = torch.as_tensor(inputs_np, dtype=torch.float32, device=device)
+        targets = torch.as_tensor(targets_np, dtype=torch.long, device=device)
+        mask = torch.as_tensor(mask_np, device=device)
+
+        logits = model(inputs)
+        loss = _masked_cross_entropy(logits, targets, mask)
+        loss = loss + algorithm.l1_coef * _l1_penalty(model)
+
+        optimizer.zero_grad()
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
+        optimizer.step()
+
+        pbar.update(1)
+
+        if iteration % algorithm.eval_every_n_iters == 0:
+            accuracy = evaluate_supervised(
+                model, eval_sampler, algorithm.num_eval_sequences, device
+            )
+            exp_manager.append_metrics(
+                SupervisedMetricsRow(
+                    frame=iteration * samples_per_iter,
+                    iteration=iteration,
+                    loss=loss.item(),
+                    accuracy=accuracy,
+                )
+            )
+
+            tqdm.tqdm.write(
+                f"Iter {iteration:7d} | loss {loss.item():.4f} | acc {accuracy:.4f}"
+            )
+
+            if accuracy > best_accuracy:
+                best_accuracy = accuracy
+                exp_manager.save_model(
+                    model,
+                    optimizer=optimizer,
+                    checkpoint_name="best_model.pt",
+                    metadata={"iteration": iteration, "accuracy": accuracy},
+                )
+
+            stop_early = (
+                algorithm.target_accuracy is not None
+                and iteration >= algorithm.min_iters
+                and accuracy >= algorithm.target_accuracy
+            )
+            if stop_early:
+                tqdm.tqdm.write(
+                    f"Reached target accuracy {algorithm.target_accuracy} "
+                    f"(eval {accuracy:.4f}); stopping early."
+                )
+                break
+
+    pbar.close()
+
+    exp_manager.save_model(
+        model,
+        optimizer=optimizer,
+        checkpoint_name="final_model.pt",
+        metadata={"iteration": iteration, "final": True},
+    )
+
+    print("\n" + "=" * 60)
+    print("Training complete")
+    print(f"Best eval accuracy: {best_accuracy:.4f}")
+    print(f"Results saved to: {exp_manager.exp_dir}")
+    print("=" * 60)
+
+
+def train_a2c(args: TrainConfig):
     """Train on NeuroGym env using episode-based A2C with full BPTT.
 
     Uses ActorCriticNet (matching the example repo architecture) for proper
