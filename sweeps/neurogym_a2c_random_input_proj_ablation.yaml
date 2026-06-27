@@ -15,12 +15,13 @@ hidden_dim: 128
 num_layers: [1, 2, 3]
 learning_rate: [0.0001, 0.00001]
 random_proj_dim: [null, 10]
-num_episodes: 200000
-eval_every_n_episodes: 50
-num_eval_episodes: 10
-tbptt_len: 50
-gamma: 0.98
-entropy_coef: 0.01
 seed: [1, 2, 3, 4]
 device: cpu
-
+algorithm:
+  algorithm: a2c
+  num_episodes: 200000
+  eval_every_n_episodes: 50
+  num_eval_episodes: 10
+  tbptt_len: 50
+  gamma: 0.98
+  entropy_coef: 0.01

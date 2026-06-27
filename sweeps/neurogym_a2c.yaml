@@ -13,10 +13,12 @@ env_name:
 model: [{model_type: mpn}, {model_type: lstm}, {model_type: rnn}]
 hidden_dim: 128
 num_layers: 1
-total_frames: 100000
-max_episode_steps: 1000
 learning_rate: 0.001
-entropy_coef: 0.01
-value_coef: 0.5
-num_eval_episodes: 10
 device: gpu
+algorithm:
+  algorithm: a2c
+  total_frames: 100000
+  max_episode_steps: 1000
+  entropy_coef: 0.01
+  value_coef: 0.5
+  num_eval_episodes: 10

@@ -82,6 +82,48 @@ Model = Annotated[
 ]
 
 
+class AlgorithmConfig(BaseModel, extra="forbid"):
+    pass
+
+
+class A2CConfig(AlgorithmConfig):
+    algorithm: Literal["a2c"] = "a2c"
+
+    # Rollout / budget
+    max_episode_steps: int = Field(500, ge=1)
+    tbptt_len: Annotated[
+        int,
+        tyro.conf.arg(help="Truncated BPTT chunk length (0 = full episode)"),
+        Field(ge=0),
+    ] = 50
+    total_frames: int = Field(500000, ge=1)
+    num_episodes: Annotated[
+        int,
+        tyro.conf.arg(help="Stop after N episodes (0 = use total_frames)"),
+        Field(ge=0),
+    ] = 0
+
+    # Objective
+    gamma: float = Field(0.98, ge=0, le=1)
+    entropy_coef: float = Field(0.01, ge=0)
+    value_coef: float = Field(1.0, ge=0)
+    normalize_advantages: bool = False
+
+    # Evaluation / logging cadence
+    eval_every_n_episodes: Annotated[
+        int,
+        tyro.conf.arg(help="Evaluate/log/checkpoint every N episodes"),
+        Field(ge=1),
+    ] = 50
+    num_eval_episodes: int = Field(10, ge=1)
+
+
+Algorithm = Annotated[
+    Union[Annotated[A2CConfig, tyro.conf.subcommand("a2c")]],
+    Field(discriminator="algorithm"),
+]
+
+
 class TrainConfig(BaseModel, extra="forbid"):
     """Train on a NeuroGym environment with episode-based A2C and full BPTT."""
 
@@ -103,20 +145,6 @@ class TrainConfig(BaseModel, extra="forbid"):
         tyro.conf.arg(help="Path to JSON file of kwargs passed to neurogym.make()"),
     ] = None
 
-    # Rollout / budget — units differ: episodes vs frames (A2C-specific)
-    max_episode_steps: int = Field(500, ge=1)
-    tbptt_len: Annotated[
-        int,
-        tyro.conf.arg(help="Truncated BPTT chunk length (0 = full episode)"),
-        Field(ge=0),
-    ] = 50
-    total_frames: int = Field(500000, ge=1)
-    num_episodes: Annotated[
-        int,
-        tyro.conf.arg(help="Stop after N episodes (0 = use total_frames)"),
-        Field(ge=0),
-    ] = 0
-
     # Architecture
     hidden_dim: int = Field(128, ge=1)
     num_layers: int = Field(1, ge=1)
@@ -131,24 +159,13 @@ class TrainConfig(BaseModel, extra="forbid"):
     ] = None
     model: Model = Field(default_factory=LSTMConfig)
 
-    # A2C objective
-    gamma: float = Field(0.98, ge=0, le=1)
-    entropy_coef: float = Field(0.01, ge=0)
-    value_coef: float = Field(1.0, ge=0)
-    normalize_advantages: bool = False
+    # Algorithm
+    algorithm: Algorithm = Field(default_factory=A2CConfig)
 
     # Optimizer
     learning_rate: float = Field(1e-4, gt=0)
     weight_decay: float = Field(0.0, ge=0)  # L2 (Adam)
     grad_clip: float = Field(10.0, gt=0)
-
-    # Evaluation / logging cadence
-    eval_every_n_episodes: Annotated[
-        int,
-        tyro.conf.arg(help="Evaluate/log/checkpoint every N episodes"),
-        Field(ge=1),
-    ] = 50
-    num_eval_episodes: int = Field(10, ge=1)
 
     # Reproducibility / device
     seed: int = Field(42, ge=0, lt=2**32)
@@ -206,6 +223,7 @@ def train_neurogym(args: TrainConfig):
     BPTT through each episode.
     Supports rnn, lstm, mpn, mpn-frozen.
     """
+    algorithm = args.algorithm
     _seed_rngs(args.seed)
     # Single-threaded sequential RL with tiny nets: 1 thread is fastest and keeps
     # a job from oversubscribing its CPU slot (see the Condor env in sweep.py).
@@ -225,15 +243,15 @@ def train_neurogym(args: TrainConfig):
             env_kwargs = json.load(f)
 
     config = args.model_dump()
-    # Keep config.json flat: readers still expect top-level model fields.
+    # Keep config.json flat: readers still expect top-level model/algorithm fields.
     config.update(config.pop("model"))
+    config.update(config.pop("algorithm"))
     config["experiment_name"] = exp_manager.experiment_name
     config["experiment_id"] = exp_manager.experiment_id
     config["experiments_dir"] = str(
         args.experiments_dir
     )  # Path -> str for JSON + wandb
     config["command"] = "train-neurogym"
-    config["algorithm"] = "a2c"
     config["env_kwargs"] = env_kwargs
     exp_manager.save_config(config)
 
@@ -277,8 +295,10 @@ def train_neurogym(args: TrainConfig):
     print(f"Environment:  {args.env_name}")
     print(f"Obs dim: {input_dim}, Action dim: {action_dim}")
     print(f"Model: {args.model.model_type.upper()}, hidden_dim={args.hidden_dim}")
-    print(f"lr={args.learning_rate}, gamma={args.gamma}, value_coef={args.value_coef}")
-    print(f"total_frames={args.total_frames}\n")
+    print(
+        f"lr={args.learning_rate}, gamma={algorithm.gamma}, value_coef={algorithm.value_coef}"
+    )
+    print(f"total_frames={algorithm.total_frames}\n")
 
     model = ActorCriticNet(
         input_dim=input_dim,
@@ -306,8 +326,8 @@ def train_neurogym(args: TrainConfig):
     print("Starting training...")
     print("-" * 60)
 
-    use_ep_limit = args.num_episodes > 0
-    pbar_total = args.num_episodes if use_ep_limit else args.total_frames
+    use_ep_limit = algorithm.num_episodes > 0
+    pbar_total = algorithm.num_episodes if use_ep_limit else algorithm.total_frames
     pbar = tqdm.tqdm(
         total=pbar_total,
         desc="Episodes" if use_ep_limit else "Frames",
@@ -315,8 +335,8 @@ def train_neurogym(args: TrainConfig):
     )
 
     episode = 0
-    while (use_ep_limit and episode < args.num_episodes) or (
-        not use_ep_limit and total_frames < args.total_frames
+    while (use_ep_limit and episode < algorithm.num_episodes) or (
+        not use_ep_limit and total_frames < algorithm.total_frames
     ):
         obs, _ = env.reset(seed=random.randint(0, 10_000_000))
         state = None
@@ -331,7 +351,7 @@ def train_neurogym(args: TrainConfig):
             [],
         )
 
-        for step in range(args.max_episode_steps):
+        for step in range(algorithm.max_episode_steps):
             obs_t = torch.FloatTensor(obs).unsqueeze(0).to(device)
             policy_dist, value, state = model(obs_t, state)
             action = int(
@@ -355,15 +375,17 @@ def train_neurogym(args: TrainConfig):
 
             obs = next_obs
 
-            chunk_full = args.tbptt_len > 0 and len(chunk_log_probs) == args.tbptt_len
-            if chunk_full or done or step == args.max_episode_steps - 1:
+            chunk_full = (
+                algorithm.tbptt_len > 0 and len(chunk_log_probs) == algorithm.tbptt_len
+            )
+            if chunk_full or done or step == algorithm.max_episode_steps - 1:
                 with torch.no_grad():
                     obs_t = torch.FloatTensor(obs).unsqueeze(0).to(device)
                     _, next_value, _ = model(obs_t, state)
                     next_value = next_value.squeeze().item() * (1.0 - float(done))
 
                 returns = _compute_returns_episode(
-                    chunk_rewards, chunk_dones, next_value, args.gamma
+                    chunk_rewards, chunk_dones, next_value, algorithm.gamma
                 )
 
                 log_probs_t = torch.stack(chunk_log_probs)
@@ -372,15 +394,15 @@ def train_neurogym(args: TrainConfig):
                 entropy = torch.stack(chunk_entropies).mean()
 
                 advantages = returns_t - values_t.detach()
-                if args.normalize_advantages and advantages.std() > 1e-8:
+                if algorithm.normalize_advantages and advantages.std() > 1e-8:
                     advantages = (advantages - advantages.mean()) / advantages.std()
 
                 actor_loss = -(log_probs_t * advantages).mean()
                 critic_loss = F.mse_loss(values_t, returns_t.detach())
                 total_loss = (
                     actor_loss
-                    + args.value_coef * critic_loss
-                    - args.entropy_coef * entropy
+                    + algorithm.value_coef * critic_loss
+                    - algorithm.entropy_coef * entropy
                 )
 
                 optimizer.zero_grad()
@@ -411,22 +433,22 @@ def train_neurogym(args: TrainConfig):
         episode += 1
         pbar.update((episode if use_ep_limit else total_frames) - pbar.n)
 
-        if episode - last_eval_episode >= args.eval_every_n_episodes:
+        if episode - last_eval_episode >= algorithm.eval_every_n_episodes:
             last_eval_episode = episode
             eval_seed = int(_eval_rng.integers(0, 2**31))
 
             eval_reward, eval_reward_std, _ = _evaluate_actorcritic(
                 model,
                 make_train_env,
-                args.num_eval_episodes,
-                args.max_episode_steps,
+                algorithm.num_eval_episodes,
+                algorithm.max_episode_steps,
                 eval_seed,
                 device,
             )
             oracle_reward = get_oracle_reward(
                 args.env_name,
-                n_episodes=args.num_eval_episodes,
-                max_steps=args.max_episode_steps,
+                n_episodes=algorithm.num_eval_episodes,
+                max_steps=algorithm.max_episode_steps,
                 seed=eval_seed,
                 env_factory=make_oracle_env,
             )
@@ -493,7 +515,7 @@ def train_neurogym(args: TrainConfig):
         model,
         optimizer=optimizer,
         checkpoint_name="final_model.pt",
-        metadata={"total_frames": args.total_frames, "final": True},
+        metadata={"total_frames": algorithm.total_frames, "final": True},
     )
 
     print("\n" + "=" * 60)
