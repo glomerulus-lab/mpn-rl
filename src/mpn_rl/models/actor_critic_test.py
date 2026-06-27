@@ -7,4 +7,4 @@ def test_actor_critic_net_builds_from_each_model_config() -> None:
         net = ActorCriticNet(
             input_dim=4, action_dim=2, hidden_dim=8, **config.model_dump()
         )
-        assert net.model_type == config.model_type
+        assert net.core.model_type == config.model_type
