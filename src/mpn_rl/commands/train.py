@@ -85,6 +85,7 @@ Model = Annotated[
 class TrainConfig(BaseModel, extra="forbid"):
     """Train on a NeuroGym environment with episode-based A2C and full BPTT."""
 
+    # Identity / output
     sweep_name: str | None = None
     experiment_name: str | None = None
     experiments_dir: Annotated[
@@ -94,11 +95,15 @@ class TrainConfig(BaseModel, extra="forbid"):
             "(config, metrics, checkpoints, plots)"
         ),
     ] = Path("experiments")
+
+    # Environment
     env_name: str = "GoNogo-v0"
     env_config: Annotated[
         str | None,
         tyro.conf.arg(help="Path to JSON file of kwargs passed to neurogym.make()"),
     ] = None
+
+    # Rollout / budget — units differ: episodes vs frames (A2C-specific)
     max_episode_steps: int = Field(500, ge=1)
     tbptt_len: Annotated[
         int,
@@ -111,6 +116,8 @@ class TrainConfig(BaseModel, extra="forbid"):
         tyro.conf.arg(help="Stop after N episodes (0 = use total_frames)"),
         Field(ge=0),
     ] = 0
+
+    # Architecture
     hidden_dim: int = Field(128, ge=1)
     num_layers: int = Field(1, ge=1)
     random_proj_dim: Annotated[
@@ -123,21 +130,31 @@ class TrainConfig(BaseModel, extra="forbid"):
         Field(ge=1),
     ] = None
     model: Model = Field(default_factory=LSTMConfig)
+
+    # A2C objective
     gamma: float = Field(0.98, ge=0, le=1)
     entropy_coef: float = Field(0.01, ge=0)
     value_coef: float = Field(1.0, ge=0)
     normalize_advantages: bool = False
+
+    # Optimizer
     learning_rate: float = Field(1e-4, gt=0)
-    weight_decay: float = Field(0.0, ge=0)
+    weight_decay: float = Field(0.0, ge=0)  # L2 (Adam)
     grad_clip: float = Field(10.0, gt=0)
+
+    # Evaluation / logging cadence
     print_freq: Annotated[
         int,
         tyro.conf.arg(help="Evaluate and log every N episodes"),
         Field(ge=1),
     ] = 50
     num_eval_episodes: int = Field(10, ge=1)
+
+    # Reproducibility / device
     seed: int = Field(42, ge=0, lt=2**32)
     device: Literal["cpu", "gpu"] = "cpu"
+
+    # Experiment tracking (wandb)
     tag: str | None = None
     wandb: bool = False
     wandb_project: str = "mpn-rl"
