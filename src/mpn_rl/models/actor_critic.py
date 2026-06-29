@@ -34,6 +34,7 @@ class ActorCriticNet(nn.Module):
         num_layers: int = 1,
         mpn_bias: bool = True,
         random_proj_dim: int | None = None,
+        input_noise_scale: float = 0.0,
     ):
         super().__init__()
         self.core = RecurrentCore(
@@ -47,6 +48,7 @@ class ActorCriticNet(nn.Module):
             num_layers=num_layers,
             mpn_bias=mpn_bias,
             random_proj_dim=random_proj_dim,
+            input_noise_scale=input_noise_scale,
         )
         self.postprocessor = nn.Sequential(nn.Linear(hidden_dim, 64), nn.ReLU())
         self.actor = nn.Sequential(

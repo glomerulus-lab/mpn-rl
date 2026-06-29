@@ -24,14 +24,8 @@ from mpn_rl.experiment import ExperimentManager, MetricsRow
 from mpn_rl.models.actor_critic import ActorCriticNet
 from mpn_rl.models.supervised import SupervisedNet
 from mpn_rl.oracle_agents import get_oracle_reward
+from mpn_rl.seeding import seed_rngs
 from mpn_rl.supervised_data import MaskedSequenceSampler
-
-
-def _seed_rngs(seed: int) -> None:
-    """Seed Python, NumPy, and Torch global RNGs for a reproducible run."""
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
 
 
 def _compute_returns_episode(rewards, dones, next_value, gamma):
@@ -198,6 +192,14 @@ class TrainConfig(BaseModel, extra="forbid"):
         ),
         Field(ge=1),
     ] = None
+    input_noise_scale: Annotated[
+        float,
+        tyro.conf.arg(
+            help="Desired L2 magnitude of Gaussian noise added to the input "
+            "(the MPN paper uses 0.1)."
+        ),
+        Field(ge=0),
+    ] = 0.0
     model: Model = Field(default_factory=LSTMConfig)
 
     # Algorithm
@@ -298,7 +300,7 @@ def train_supervised(args: TrainConfig):
     mask (the steps where a response is judged; fixation holding is not scored).
     """
     algorithm = args.algorithm
-    _seed_rngs(args.seed)
+    seed_rngs(args.seed)
     torch.set_num_threads(1)
     print("=" * 60)
     print("Training with supervised cross-entropy on NeuroGym")
@@ -360,6 +362,7 @@ def train_supervised(args: TrainConfig):
         hidden_dim=args.hidden_dim,
         num_layers=args.num_layers,
         random_proj_dim=args.random_proj_dim,
+        input_noise_scale=args.input_noise_scale,
         **args.model.model_dump(),
     ).to(device)
 
@@ -455,7 +458,7 @@ def train_a2c(args: TrainConfig):
     Supports rnn, lstm, mpn, mpn-frozen.
     """
     algorithm = args.algorithm
-    _seed_rngs(args.seed)
+    seed_rngs(args.seed)
     # Single-threaded sequential RL with tiny nets: 1 thread is fastest and keeps
     # a job from oversubscribing its CPU slot (see the Condor env in sweep.py).
     torch.set_num_threads(1)
@@ -537,6 +540,7 @@ def train_a2c(args: TrainConfig):
         hidden_dim=args.hidden_dim,
         num_layers=args.num_layers,
         random_proj_dim=args.random_proj_dim,
+        input_noise_scale=args.input_noise_scale,
         **args.model.model_dump(),
     ).to(device)
 

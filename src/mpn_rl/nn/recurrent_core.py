@@ -1,5 +1,7 @@
 """Recurrent core shared by the A2C and supervised models."""
 
+import math
+
 import torch
 import torch.nn as nn
 
@@ -32,9 +34,11 @@ class RecurrentCore(nn.Module):
         num_layers: int = 1,
         mpn_bias: bool = True,
         random_proj_dim: int | None = None,
+        input_noise_scale: float = 0.0,
     ):
         super().__init__()
         self.model_type = model_type
+        self.input_noise_scale = input_noise_scale
 
         if random_proj_dim is None:
             self.input_proj = None
@@ -42,6 +46,7 @@ class RecurrentCore(nn.Module):
         else:
             self.input_proj = RandomInputProjection(input_dim, random_proj_dim)
             core_input_dim = random_proj_dim
+        self.core_input_dim = core_input_dim
 
         self.core: nn.Module
         if model_type == "rnn":
@@ -72,6 +77,11 @@ class RecurrentCore(nn.Module):
     ) -> tuple[torch.Tensor, RecurrentState]:
         if self.input_proj is not None:
             x = self.input_proj(x)
+        if self.input_noise_scale > 0:
+            # Add noise to the input, matching the reference implementation:
+            # https://github.com/kaitken17/mpn/blob/6147f2b/networks.py#L334-L339
+            std = self.input_noise_scale / math.sqrt(self.core_input_dim)
+            x = x + std * torch.randn_like(x)
         if self.model_type in ("rnn", "lstm"):
             out, state = self.core(x.unsqueeze(1), state)  # (batch, 1, hidden)
             out = out.squeeze(1)  # (batch, hidden)

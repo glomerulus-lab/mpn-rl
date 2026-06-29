@@ -51,5 +51,6 @@ def _load_model_from_config(config, device):
         num_layers=config.get("num_layers", 1),
         mpn_bias=config.get("mpn_bias", True),
         random_proj_dim=config.get("random_proj_dim"),
+        input_noise_scale=config.get("input_noise_scale", 0.0),
     ).to(device)
     return model

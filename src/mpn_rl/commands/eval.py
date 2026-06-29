@@ -9,6 +9,7 @@ from mpn_rl.device import get_device
 from mpn_rl.envs import _create_env_from_config, _load_model_from_config
 from mpn_rl.evaluation import evaluate_actorcritic, evaluate_supervised
 from mpn_rl.experiment import ExperimentManager
+from mpn_rl.seeding import seed_rngs
 from mpn_rl.supervised_data import MaskedSequenceSampler
 
 
@@ -115,12 +116,14 @@ def _eval_supervised(args, config, model, device):
     print(f"Evaluating accuracy over {num_sequences} sequences\n")
     # Default to a held-out test stream, distinct from both the training stream
     # (seed) and the validation stream used to select best_model (seed + 10_000).
+    seed = args.seed if args.seed is not None else config.get("seed", 42) + 20_000
+    seed_rngs(seed)
     sampler = MaskedSequenceSampler(
         config["env_name"],
         config.get("env_kwargs", {}),
         config.get("batch_size", 32),
         config.get("sequence_len", 100),
-        seed=args.seed if args.seed is not None else config.get("seed", 42) + 20_000,
+        seed=seed,
     )
     accuracy = evaluate_supervised(model, sampler, num_sequences, device)
 
