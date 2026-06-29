@@ -111,7 +111,7 @@ cfg = json.load(open(run_dir / "config.json"))
 env0 = ngym.make(ENV, dt=100)
 model = ActorCriticNet(
     input_dim=env0.observation_space.shape[0],
-    action_dim=env0.action_space.n,
+    output_dim=env0.action_space.n,
     hidden_dim=cfg["hidden_dim"],
     model_type=cfg["model_type"],
     activation=cfg.get("activation", "tanh"),

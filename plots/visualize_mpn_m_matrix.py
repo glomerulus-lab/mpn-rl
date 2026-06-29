@@ -67,7 +67,7 @@ def _load_model(exp_dir: Path, device: torch.device):
 
     model = ActorCriticNet(
         input_dim=input_dim,
-        action_dim=action_dim,
+        output_dim=action_dim,
         hidden_dim=config.get("hidden_dim", 128),
         num_layers=config.get("num_layers", 1),
         model_type=config.get("model_type", "mpn"),

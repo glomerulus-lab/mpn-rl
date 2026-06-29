@@ -117,7 +117,7 @@ for _, row in best_df.iterrows():
     env_tmp = _create_env_from_config(config)
     model = ActorCriticNet(
         input_dim=env_tmp.observation_space.shape[0],
-        action_dim=env_tmp.action_space.n,
+        output_dim=env_tmp.action_space.n,
         hidden_dim=config.get("hidden_dim", 128),
         model_type=config.get("model_type", "lstm"),
         activation=config.get("activation", "tanh"),

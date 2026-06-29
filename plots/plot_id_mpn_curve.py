@@ -137,7 +137,7 @@ def load_model(run_path):
     env = ngym.make(ENV, dt=100)
     model = ActorCriticNet(
         input_dim=env.observation_space.shape[0],
-        action_dim=env.action_space.n,
+        output_dim=env.action_space.n,
         hidden_dim=cfg["hidden_dim"],
         model_type=cfg["model_type"],
         activation=cfg.get("activation", "tanh"),

@@ -9,7 +9,7 @@ The actor-critic network uses a recurrent core selected by `--model-type`:
 ```
 Observation → core (MPN / LSTM / RNN)
                 → Linear(hidden_dim, 64) + ReLU
-                → actor:  Linear(64, action_dim) → Softmax
+                → actor:  Linear(64, output_dim) → Softmax
                 → critic: Linear(64, 1)
 ```
 

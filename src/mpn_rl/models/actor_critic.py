@@ -12,7 +12,7 @@ class ActorCriticNet(nn.Module):
     Structure:
         RecurrentCore (optional input projection → RNN / LSTM / MPN)
           → postprocessor: Linear(hidden_dim, 64) + ReLU
-          → actor:  Linear(64, 64) → Linear(64, action_dim) → Softmax
+          → actor:  Linear(64, 64) → Linear(64, output_dim) → Softmax
           → critic: Linear(64, 64) → Linear(64, 1)
 
     forward(x, state) → (policy_dist, value, new_state)
@@ -24,7 +24,7 @@ class ActorCriticNet(nn.Module):
     def __init__(
         self,
         input_dim: int,
-        action_dim: int,
+        output_dim: int,
         hidden_dim: int = 128,
         model_type: str = "lstm",
         activation: str = "tanh",
@@ -52,7 +52,7 @@ class ActorCriticNet(nn.Module):
         self.actor = nn.Sequential(
             nn.Linear(64, 64),
             nn.Tanh(),
-            nn.Linear(64, action_dim),
+            nn.Linear(64, output_dim),
             nn.Softmax(dim=-1),
         )
         self.critic = nn.Sequential(

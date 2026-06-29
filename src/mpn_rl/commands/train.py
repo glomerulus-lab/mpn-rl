@@ -356,7 +356,7 @@ def train_supervised(args: TrainConfig):
 
     model = SupervisedNet(
         input_dim=input_dim,
-        num_classes=num_classes,
+        output_dim=num_classes,
         hidden_dim=args.hidden_dim,
         num_layers=args.num_layers,
         random_proj_dim=args.random_proj_dim,
@@ -533,7 +533,7 @@ def train_a2c(args: TrainConfig):
 
     model = ActorCriticNet(
         input_dim=input_dim,
-        action_dim=action_dim,
+        output_dim=action_dim,
         hidden_dim=args.hidden_dim,
         num_layers=args.num_layers,
         random_proj_dim=args.random_proj_dim,

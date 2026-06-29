@@ -38,7 +38,7 @@ def _load_model_from_config(config, device):
     env.close()
     model = ActorCriticNet(
         input_dim=input_dim,
-        action_dim=action_dim,
+        output_dim=action_dim,
         hidden_dim=config.get("hidden_dim", 128),
         model_type=config.get("model_type", "lstm"),
         activation=config.get("activation", "tanh"),

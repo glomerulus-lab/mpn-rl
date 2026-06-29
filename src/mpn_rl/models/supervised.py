@@ -10,7 +10,7 @@ class SupervisedNet(nn.Module):
     def __init__(
         self,
         input_dim: int,
-        num_classes: int,
+        output_dim: int,
         hidden_dim: int = 128,
         model_type: str = "lstm",
         activation: str = "tanh",
@@ -34,13 +34,13 @@ class SupervisedNet(nn.Module):
             mpn_bias=mpn_bias,
             random_proj_dim=random_proj_dim,
         )
-        self.readout = nn.Linear(hidden_dim, num_classes)
+        self.readout = nn.Linear(hidden_dim, output_dim)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """forward(x) → logits
 
         x:      (batch, time, input_dim)
-        logits: (batch, time, num_classes) — unnormalized, for cross-entropy
+        logits: (batch, time, output_dim) — unnormalized, for cross-entropy
 
         State is reset at the start of the sequence and rolled across every
         timestep (rnn: hidden tensor, lstm: (h, c) tuple, mpn: list of M
