@@ -668,7 +668,7 @@ def train_a2c(args: TrainConfig):
             last_eval_episode = episode
             eval_seed = int(_eval_rng.integers(0, 2**31))
 
-            eval_rewards = evaluate_actorcritic(
+            eval_rewards, _ = evaluate_actorcritic(
                 model,
                 make_train_env,
                 algorithm.num_eval_episodes,

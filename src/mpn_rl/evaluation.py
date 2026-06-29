@@ -2,38 +2,50 @@
 
 import numpy as np
 import torch
+import tqdm
 
 from mpn_rl.models.supervised import SupervisedNet
 from mpn_rl.supervised_data import MaskedSequenceSampler
 
 
-def evaluate_actorcritic(model, env_factory, num_episodes, max_steps, seed, device):
+def evaluate_actorcritic(
+    model, env_factory, num_episodes, max_steps, seed, device, progress=False
+):
     """Evaluate ActorCriticNet greedily on a fresh env from env_factory.
 
-    Returns the list of per-episode rewards.
+    Returns (per-episode rewards, per-episode lengths). progress=True shows a
+    tqdm bar.
     """
     model.eval()
     rewards = []
+    lengths = []
+    bar = tqdm.tqdm(
+        range(num_episodes), desc="Evaluating", unit="episode", disable=not progress
+    )
     with torch.no_grad():
-        for ep in range(num_episodes):
+        for ep in bar:
             env = env_factory()
             if seed is not None:
                 env.unwrapped.rng = np.random.RandomState(seed + ep)
             obs, _ = env.reset()
             state = None
             ep_reward = 0.0
+            ep_length = 0
             for _ in range(max_steps):
                 obs_t = torch.FloatTensor(obs).unsqueeze(0).to(device)
                 policy_dist, _, state = model(obs_t, state)
                 action = int(policy_dist.argmax(-1).item())
                 obs, reward, terminated, truncated, _ = env.step(action)
                 ep_reward += reward
+                ep_length += 1
                 if terminated or truncated:
                     break
             rewards.append(ep_reward)
+            lengths.append(ep_length)
             env.close()
+            bar.set_postfix(reward=f"{ep_reward:.2f}")
     model.train()
-    return rewards
+    return rewards, lengths
 
 
 def evaluate_supervised(

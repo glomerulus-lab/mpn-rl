@@ -1,15 +1,13 @@
-import random
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Literal
 
 import numpy as np
-import torch
-import tqdm
 import tyro
 
 from mpn_rl.device import get_device
 from mpn_rl.envs import _create_env_from_config, _load_model_from_config
+from mpn_rl.evaluation import evaluate_actorcritic
 from mpn_rl.experiment import ExperimentManager
 
 
@@ -24,6 +22,7 @@ class EvalConfig:
     num_eval_episodes: int = 10
     checkpoint: str | None = None
     max_episode_steps: int = 500
+    seed: int | None = None
     device: Literal["cpu", "gpu"] = "cpu"
 
 
@@ -42,42 +41,19 @@ def evaluate(args: EvalConfig):
     model = _load_model_from_config(config, device)
     checkpoint_name = args.checkpoint if args.checkpoint else "best_model.pt"
     exp_manager.load_model(model, checkpoint_name=checkpoint_name, device=str(device))
-    model.eval()
 
-    env = _create_env_from_config(config)
     print(f"Loaded checkpoint: {checkpoint_name}")
     print(f"Evaluating for {args.num_eval_episodes} episodes\n")
 
-    rewards = []
-    lengths = []
-
-    with torch.no_grad():
-        for ep in tqdm.tqdm(
-            range(args.num_eval_episodes), desc="Evaluating", unit="episode"
-        ):
-            obs, _ = env.reset(seed=random.randint(0, 10_000_000))
-            h = None
-            episode_reward = 0.0
-            episode_length = 0
-
-            while episode_length < args.max_episode_steps:
-                x = torch.FloatTensor(obs).unsqueeze(0).to(device)
-                policy_dist, _, h = model(x, h)
-                action = int(policy_dist.squeeze(0).argmax().item())
-                obs, reward, terminated, truncated, _ = env.step(action)
-                episode_reward += reward
-                episode_length += 1
-                if terminated or truncated:
-                    break
-
-            rewards.append(episode_reward)
-            lengths.append(episode_length)
-            tqdm.tqdm.write(
-                f"Episode {ep + 1}/{args.num_eval_episodes}: "
-                f"Reward = {episode_reward:.2f}, Length = {episode_length}"
-            )
-
-    env.close()
+    rewards, lengths = evaluate_actorcritic(
+        model,
+        lambda: _create_env_from_config(config),
+        args.num_eval_episodes,
+        args.max_episode_steps,
+        args.seed,
+        device,
+        progress=True,
+    )
 
     print("\n" + "=" * 60)
     print("Evaluation Results:")

@@ -133,7 +133,7 @@ for _, row in best_df.iterrows():
     model.load_state_dict(ckpt["model_state_dict"])
 
     print(f"Evaluating {model_type:12s} on {env_name}...")
-    ep_rewards = evaluate_actorcritic(
+    ep_rewards, _ = evaluate_actorcritic(
         model,
         lambda cfg=config: _create_env_from_config(cfg),
         NUM_EPISODES,
