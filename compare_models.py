@@ -173,7 +173,7 @@ def evaluate_model_rewards(
     """
     rewards = []
     for seed in seeds:
-        _, _, ep_rewards = evaluate_actorcritic(
+        ep_rewards = evaluate_actorcritic(
             model,
             lambda cfg=config: _create_env_from_config(cfg, device=device),
             num_episodes=1,

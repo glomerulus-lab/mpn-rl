@@ -133,7 +133,7 @@ for _, row in best_df.iterrows():
     model.load_state_dict(ckpt["model_state_dict"])
 
     print(f"Evaluating {model_type:12s} on {env_name}...")
-    mean_r, std_r, _ = evaluate_actorcritic(
+    ep_rewards = evaluate_actorcritic(
         model,
         lambda cfg=config: _create_env_from_config(cfg),
         NUM_EPISODES,
@@ -141,6 +141,7 @@ for _, row in best_df.iterrows():
         seed=0,
         device=DEVICE,
     )
+    mean_r, std_r = float(np.mean(ep_rewards)), float(np.std(ep_rewards))
     results[env_name][model_type] = (mean_r, std_r)
     print(f"  mean={mean_r:.4f}  std={std_r:.4f}")
 

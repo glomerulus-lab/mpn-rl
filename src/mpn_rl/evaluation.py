@@ -10,7 +10,7 @@ from mpn_rl.supervised_data import MaskedSequenceSampler
 def evaluate_actorcritic(model, env_factory, num_episodes, max_steps, seed, device):
     """Evaluate ActorCriticNet greedily on a fresh env from env_factory.
 
-    Returns (mean_reward, std_reward, per_episode_rewards).
+    Returns the list of per-episode rewards.
     """
     model.eval()
     rewards = []
@@ -33,7 +33,7 @@ def evaluate_actorcritic(model, env_factory, num_episodes, max_steps, seed, devi
             rewards.append(ep_reward)
             env.close()
     model.train()
-    return float(np.mean(rewards)), float(np.std(rewards)), rewards
+    return rewards
 
 
 def evaluate_supervised(

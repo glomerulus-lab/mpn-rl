@@ -668,7 +668,7 @@ def train_a2c(args: TrainConfig):
             last_eval_episode = episode
             eval_seed = int(_eval_rng.integers(0, 2**31))
 
-            eval_reward, eval_reward_std, _ = evaluate_actorcritic(
+            eval_rewards = evaluate_actorcritic(
                 model,
                 make_train_env,
                 algorithm.num_eval_episodes,
@@ -676,6 +676,8 @@ def train_a2c(args: TrainConfig):
                 eval_seed,
                 device,
             )
+            eval_reward = float(np.mean(eval_rewards))
+            eval_reward_std = float(np.std(eval_rewards))
             oracle_reward = get_oracle_reward(
                 args.env_name,
                 n_episodes=algorithm.num_eval_episodes,
