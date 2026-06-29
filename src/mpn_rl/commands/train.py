@@ -89,7 +89,6 @@ class AlgorithmConfig(BaseModel, extra="forbid"):
 class A2CConfig(AlgorithmConfig):
     algorithm: Literal["a2c"] = "a2c"
 
-    # Rollout / budget
     max_episode_steps: int = Field(500, ge=1)
     tbptt_len: Annotated[
         int,
@@ -103,13 +102,11 @@ class A2CConfig(AlgorithmConfig):
         Field(ge=0),
     ] = 0
 
-    # Objective
     gamma: float = Field(0.98, ge=0, le=1)
     entropy_coef: float = Field(0.01, ge=0)
     value_coef: float = Field(1.0, ge=0)
     normalize_advantages: bool = False
 
-    # Evaluation / logging cadence
     eval_every_n_episodes: Annotated[
         int,
         tyro.conf.arg(help="Evaluate/log/checkpoint every N episodes"),
@@ -121,11 +118,9 @@ class A2CConfig(AlgorithmConfig):
 class SupervisedConfig(AlgorithmConfig):
     algorithm: Literal["supervised"] = "supervised"
 
-    # Data
     sequence_len: int = Field(100, ge=1)
     batch_size: int = Field(32, ge=1)
 
-    # Budget / stopping
     max_iters: int = Field(100000, ge=1)
     min_iters: Annotated[
         int,
@@ -142,10 +137,8 @@ class SupervisedConfig(AlgorithmConfig):
         Field(gt=0, le=1),
     ] = 0.99
 
-    # Regularization
     l1_coef: float = Field(1e-4, ge=0)
 
-    # Evaluation / logging cadence
     eval_every_n_iters: Annotated[
         int,
         tyro.conf.arg(help="Evaluate/log/checkpoint every N iterations"),
@@ -166,7 +159,6 @@ Algorithm = Annotated[
 class TrainConfig(BaseModel, extra="forbid"):
     """Train on a NeuroGym environment with episode-based A2C and full BPTT."""
 
-    # Identity / output
     sweep_name: str | None = None
     experiment_name: str | None = None
     experiments_dir: Annotated[
@@ -177,14 +169,12 @@ class TrainConfig(BaseModel, extra="forbid"):
         ),
     ] = Path("experiments")
 
-    # Environment
     env_name: str = "GoNogo-v0"
     env_config: Annotated[
         str | None,
         tyro.conf.arg(help="Path to JSON file of kwargs passed to neurogym.make()"),
     ] = None
 
-    # Architecture
     hidden_dim: int = Field(128, ge=1)
     num_layers: int = Field(1, ge=1)
     random_proj_dim: Annotated[
@@ -206,19 +196,15 @@ class TrainConfig(BaseModel, extra="forbid"):
     ] = 0.0
     model: Model = Field(default_factory=LSTMConfig)
 
-    # Algorithm
     algorithm: Algorithm = Field(default_factory=A2CConfig)
 
-    # Optimizer
     learning_rate: float = Field(1e-4, gt=0)
-    weight_decay: float = Field(0.0, ge=0)  # L2 (Adam)
+    weight_decay: float = Field(0.0, ge=0)
     grad_clip: float = Field(10.0, gt=0)
 
-    # Reproducibility / device
     seed: int = Field(42, ge=0, lt=2**32)
     device: Literal["cpu", "gpu"] = "cpu"
 
-    # Experiment tracking (wandb)
     tag: str | None = None
     wandb: bool = False
     wandb_project: str = "mpn-rl"
