@@ -135,7 +135,7 @@ def test_create_sweep_writes_experiment_configs() -> None:
         config_file = results_dir / "mysweep.yaml"
         config_file.write_text("model: [{model_type: mpn}, {model_type: lstm}]\n")
         sweep_dir, _ = create_sweep(config_file, None, results_dir)
-        names = sorted(p.name for p in sweep_dir.glob("*.yaml"))
+        names = sorted(p.name for p in (sweep_dir / "configs").glob("*.yaml"))
     assert names == ["mysweep-0000.yaml", "mysweep-0001.yaml"]
 
 
@@ -147,8 +147,8 @@ def test_create_sweep_writes_args_file() -> None:
         sweep_dir, _ = create_sweep(config_file, None, results_dir)
         args = (sweep_dir / "args.txt").read_text()
         expected = (
-            f"--config {sweep_dir / 'mysweep-0000.yaml'}\n"
-            f"--config {sweep_dir / 'mysweep-0001.yaml'}"
+            f"--config {sweep_dir / 'configs' / 'mysweep-0000.yaml'}\n"
+            f"--config {sweep_dir / 'configs' / 'mysweep-0001.yaml'}"
         )
     assert args == expected
 
@@ -213,7 +213,9 @@ def test_create_sweep_names_experiments_by_index() -> None:
         config_file = results_dir / "mysweep.yaml"
         config_file.write_text("model: [{model_type: mpn}, {model_type: lstm}]\n")
         sweep_dir, _ = create_sweep(config_file, None, results_dir)
-        config = yaml.safe_load((sweep_dir / "mysweep-0001.yaml").read_text())
+        config = yaml.safe_load(
+            (sweep_dir / "configs" / "mysweep-0001.yaml").read_text()
+        )
     assert config["experiment_name"] == "mysweep-0001"
 
 

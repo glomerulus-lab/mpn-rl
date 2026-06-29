@@ -88,9 +88,11 @@ def create_sweep(
         raise ValueError("Sweeps cannot mix devices")
     request_gpus = 1 if devices == {"gpu"} else 0
     sweep_dir.mkdir(parents=True)
+    config_dir = sweep_dir / "configs"
+    config_dir.mkdir()
     config_paths = []
     for i, experiment in enumerate(experiments):
-        path = sweep_dir / f"{name}-{i:04d}.yaml"
+        path = config_dir / f"{name}-{i:04d}.yaml"
         path.write_text(
             yaml.safe_dump(experiment.model_dump(mode="json"), sort_keys=False)
         )
