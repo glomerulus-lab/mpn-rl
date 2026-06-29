@@ -29,7 +29,7 @@ class RecurrentCore(nn.Module):
         model_type: str = "lstm",
         activation: str = "tanh",
         lambda_max: float = 0.99,
-        eta_init: float = 0.01,
+        eta_init: float | None = 0.01,
         lambda_init: float = 0.99,
         num_layers: int = 1,
         mpn_bias: bool = True,

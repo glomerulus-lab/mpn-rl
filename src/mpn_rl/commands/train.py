@@ -54,7 +54,10 @@ class RNNConfig(ModelConfig):
 
 class MPNConfig(ModelConfig):
     model_type: Literal["mpn"] = "mpn"
-    eta_init: float = 0.01
+    eta_init: Annotated[
+        float | None,
+        tyro.conf.arg(help="Initial Hebbian write strength (eta); None = Xavier init"),
+    ] = 0.01
     lambda_init: float = Field(0.99, ge=0, le=1)
     lambda_max: float = Field(0.99, ge=0, le=1)
     activation: Literal["relu", "tanh", "sigmoid"] = "tanh"

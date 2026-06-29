@@ -89,7 +89,7 @@ class MPNLayer(nn.Module):
         bias: bool = True,
         freeze_plasticity: bool = False,
         lambda_max: float = 0.99,
-        eta_init: float = 0.01,
+        eta_init: float | None = 0.01,
         lambda_init: float = 0.99,
     ):
         super().__init__()
@@ -236,7 +236,7 @@ class MPN(nn.Module):
         num_layers: Number of stacked MPN layers.
         activation: Activation applied in each MPN layer.
         lambda_max: Upper clamp on each layer's decay rate lambda.
-        eta_init: Initial Hebbian write strength eta.
+        eta_init: Initial Hebbian write strength eta (None = Xavier init).
         lambda_init: Initial decay rate lambda.
         freeze_plasticity: Disable Hebbian updates (M stays zero).
         bias: Whether each MPN layer uses a bias term.
@@ -249,7 +249,7 @@ class MPN(nn.Module):
         num_layers: int = 1,
         activation: str = "tanh",
         lambda_max: float = 0.99,
-        eta_init: float = 0.01,
+        eta_init: float | None = 0.01,
         lambda_init: float = 0.99,
         freeze_plasticity: bool = False,
         bias: bool = True,
