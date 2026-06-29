@@ -5,6 +5,7 @@ import neurogym  # noqa: F401 — registers NeuroGym environments
 
 import mpn_rl.temporal_order_env  # noqa: F401 — registers TemporalOrder-v0 / TemporalOrder10-v0 / TemporalOrder20-v0
 from mpn_rl.models.actor_critic import ActorCriticNet
+from mpn_rl.models.supervised import SupervisedNet
 
 
 class TrialEndWrapper(gymnasium.Wrapper):
@@ -31,14 +32,16 @@ def _create_env_from_config(config, device="cpu", max_episode_steps=500):
 
 
 def _load_model_from_config(config, device):
-    """Reconstruct an ActorCriticNet from a saved experiment config."""
+    """Reconstruct the trained model (ActorCriticNet or SupervisedNet) from config."""
     env = _create_env_from_config(config, device)
     input_dim = env.observation_space.shape[0]
-    action_dim = env.action_space.n
+    output_dim = env.action_space.n
     env.close()
-    model = ActorCriticNet(
+    algorithm = config.get("algorithm", "a2c")
+    model_cls = SupervisedNet if algorithm == "supervised" else ActorCriticNet
+    model = model_cls(
         input_dim=input_dim,
-        output_dim=action_dim,
+        output_dim=output_dim,
         hidden_dim=config.get("hidden_dim", 128),
         model_type=config.get("model_type", "lstm"),
         activation=config.get("activation", "tanh"),
