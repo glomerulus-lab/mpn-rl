@@ -1,6 +1,7 @@
 import json
 import math
 import random
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Annotated, Literal, Union
@@ -380,7 +381,12 @@ def train_supervised(args: TrainConfig):
 
     best_accuracy = -float("inf")
     samples_per_iter = algorithm.batch_size * algorithm.sequence_len
-    pbar = tqdm.tqdm(total=algorithm.max_iters, desc="Iters", unit="it")
+    pbar = tqdm.tqdm(
+        total=algorithm.max_iters,
+        desc="Iters",
+        unit="it",
+        disable=not sys.stderr.isatty(),
+    )
 
     for iteration in range(1, algorithm.max_iters + 1):
         inputs_np, targets_np, mask_np = train_sampler.sample()
@@ -570,6 +576,7 @@ def train_a2c(args: TrainConfig):
         total=pbar_total,
         desc="Episodes" if use_ep_limit else "Frames",
         unit="ep" if use_ep_limit else "fr",
+        disable=not sys.stderr.isatty(),
     )
 
     episode = 0
