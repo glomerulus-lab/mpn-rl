@@ -1,0 +1,40 @@
+# Supervised MPN sweep on 11 NeuroGym tasks, following the eLife MPN paper (elife-83035).
+# Not a bit-exact replication: loss/accuracy are scored on each task's NeuroGym response
+# period (RESPONSE_PERIODS), which differs slightly from the reference's label/no_fix masking.
+env_name:
+  - ContextDecisionMaking-v0
+  - DelayComparison-v0
+  - DelayMatchSample-v0
+  - DelayMatchSampleDistractor1D-v0
+  - DelayPairedAssociation-v0
+  - GoNogo-v0
+  - IntervalDiscrimination-v0
+  - MultiSensoryIntegration-v0
+  - PerceptualDecisionMaking-v0
+  - PerceptualDecisionMakingDelayResponse-v0
+  - ProbabilisticReasoning-v0
+
+model:
+  model_type: mpn
+  mpn_bias: false
+  eta_init: null
+  lambda_max: 0.99
+
+hidden_dim: 100
+num_layers: 1
+random_proj_dim: 10
+input_noise_scale: 0.1
+learning_rate: 0.001
+grad_clip: 10
+seed: [1, 2, 3]
+device: gpu
+
+algorithm:
+  algorithm: supervised
+  sequence_len: 100
+  batch_size: 32
+  l1_coef: 0.0001
+  target_accuracy: 0.99
+  min_iters: 2000
+  max_iters: 100000
+  num_eval_sequences: 1000
