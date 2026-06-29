@@ -19,7 +19,7 @@ import mpn_rl
 import mpn_rl.temporal_order_env  # noqa: F401 — registers TemporalOrder-v0 / TemporalOrder10-v0 / TemporalOrder20-v0
 from mpn_rl.device import get_device
 from mpn_rl.envs import TrialEndWrapper
-from mpn_rl.evaluation import _evaluate_actorcritic, evaluate_supervised
+from mpn_rl.evaluation import evaluate_actorcritic, evaluate_supervised
 from mpn_rl.experiment import ExperimentManager, MetricsRow
 from mpn_rl.models.actor_critic import ActorCriticNet
 from mpn_rl.models.supervised import SupervisedNet
@@ -668,7 +668,7 @@ def train_a2c(args: TrainConfig):
             last_eval_episode = episode
             eval_seed = int(_eval_rng.integers(0, 2**31))
 
-            eval_reward, eval_reward_std, _ = _evaluate_actorcritic(
+            eval_reward, eval_reward_std, _ = evaluate_actorcritic(
                 model,
                 make_train_env,
                 algorithm.num_eval_episodes,

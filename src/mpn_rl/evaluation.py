@@ -7,7 +7,7 @@ from mpn_rl.models.supervised import SupervisedNet
 from mpn_rl.supervised_data import MaskedSequenceSampler
 
 
-def _evaluate_actorcritic(model, env_factory, num_episodes, max_steps, seed, device):
+def evaluate_actorcritic(model, env_factory, num_episodes, max_steps, seed, device):
     """Evaluate ActorCriticNet greedily on a fresh env from env_factory.
 
     Returns (mean_reward, std_reward, per_episode_rewards).

@@ -19,7 +19,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from mpn_rl.envs import _create_env_from_config
-from mpn_rl.evaluation import _evaluate_actorcritic
+from mpn_rl.evaluation import evaluate_actorcritic
 from mpn_rl.experiment import find_experiment_files, load_experiments
 from mpn_rl.models.actor_critic import ActorCriticNet
 
@@ -133,7 +133,7 @@ for _, row in best_df.iterrows():
     model.load_state_dict(ckpt["model_state_dict"])
 
     print(f"Evaluating {model_type:12s} on {env_name}...")
-    mean_r, std_r, _ = _evaluate_actorcritic(
+    mean_r, std_r, _ = evaluate_actorcritic(
         model,
         lambda cfg=config: _create_env_from_config(cfg),
         NUM_EPISODES,
